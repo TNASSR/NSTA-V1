@@ -204,10 +204,31 @@ const App: React.FC = () => {
         }, 1000);
     }
 
+    // UPDATE LAST ACTIVE TIME EVERY MINUTE
+    const activityInterval = setInterval(() => {
+        if (state.user) {
+            const updatedUser = { ...state.user, lastActiveTime: new Date().toISOString() };
+            // Update in local storage silently to avoid re-renders of the whole app unless necessary
+            // We only update the 'nst_current_user' and the user in the main 'nst_users' list
+            localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
+
+            const allUsersStr = localStorage.getItem('nst_users');
+            if (allUsersStr) {
+                const allUsers = JSON.parse(allUsersStr);
+                const idx = allUsers.findIndex((u: User) => u.id === updatedUser.id);
+                if (idx !== -1) {
+                    allUsers[idx] = updatedUser;
+                    localStorage.setItem('nst_users', JSON.stringify(allUsers));
+                }
+            }
+        }
+    }, 60000); // 1 minute
+
     return () => {
         if (interval) clearInterval(interval);
+        clearInterval(activityInterval);
     };
-  }, [state.user?.id, state.view]);
+  }, [state.user?.id, state.view, state.user]);
 
   useEffect(() => {
       document.title = `${state.settings.appName}`;

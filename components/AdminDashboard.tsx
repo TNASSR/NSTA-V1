@@ -138,6 +138,26 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   const [dmText, setDmText] = useState('');
   const [dmUser, setDmUser] = useState<User | null>(null);
 
+  // --- SEND MESSAGE ---
+  const handleSendMessage = () => {
+      if (!dmUser || !dmText.trim()) return;
+      const newMessage = {
+          id: Date.now().toString(),
+          text: dmText.trim(),
+          date: new Date().toISOString(),
+          read: false
+      };
+
+      const updatedUser = { ...dmUser, inbox: [newMessage, ...(dmUser.inbox || [])] };
+      const updatedList = users.map(u => u.id === dmUser.id ? updatedUser : u);
+
+      setUsers(updatedList);
+      localStorage.setItem('nst_users', JSON.stringify(updatedList));
+      setDmUser(null);
+      setDmText('');
+      alert("Message Sent!");
+  };
+
   // --- GIFT CODE STATE ---
   const [newCodeAmount, setNewCodeAmount] = useState(10);
   const [newCodeCount, setNewCodeCount] = useState(1);
@@ -573,6 +593,22 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
           </div>
       )}
 
+      {/* MESSAGE MODAL */}
+      {dmUser && (
+          <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl animate-in zoom-in">
+                  <div className="bg-slate-50 p-6 border-b flex justify-between items-center">
+                      <h3 className="text-lg font-black text-slate-800">Message {dmUser.name}</h3>
+                      <button onClick={() => setDmUser(null)} className="p-2 hover:bg-slate-200 rounded-full"><X size={20} /></button>
+                  </div>
+                  <div className="p-6">
+                      <textarea value={dmText} onChange={e => setDmText(e.target.value)} className="w-full p-4 border rounded-xl h-32 mb-4 font-bold text-slate-600 bg-slate-50" placeholder="Type your message..." />
+                      <button onClick={handleSendMessage} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"><MessageSquare size={18} /> Send Message</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* USER EDIT MODAL */}
       {editingUser && (
           <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -832,20 +868,30 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
                    <div className="relative"><Search className="absolute left-3 top-2.5 text-slate-400" size={16} /><input type="text" placeholder="Search users..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 p-2 border rounded-xl text-sm w-64" /></div>
               </div>
               <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                  {users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.mobile.includes(searchTerm)).map(user => (
-                      <div key={user.id} className="flex justify-between items-center p-3 border rounded-xl hover:bg-slate-50">
-                           <div>
-                               <div className="font-bold text-slate-800 flex items-center gap-2">{user.name} {user.role === 'ADMIN' && <span className="bg-red-100 text-red-600 text-[10px] px-2 py-0.5 rounded-full uppercase">Admin</span>}</div>
-                               <div className="text-xs text-slate-500 font-mono">{user.mobile} | Credits: {user.credits}</div>
-                               {user.subscriptionPlanId && <div className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full inline-block mt-1 font-bold">💎 {localSettings.subscriptionPlans?.find(p => p.id === user.subscriptionPlanId)?.name} (Exp: {new Date(user.subscriptionExpiry||'').toLocaleDateString()})</div>}
-                           </div>
-                           <div className="flex gap-2">
-                               <button onClick={() => { setEditingUser(user); setEditUserCredits(user.credits); setEditUserPass(user.password); }} className="p-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold">Edit</button>
-                               {onImpersonate && user.role !== 'ADMIN' && <button onClick={() => onImpersonate(user)} className="p-2 bg-green-50 text-green-600 rounded-lg text-xs font-bold">Login As</button>}
-                               <button onClick={() => deleteUser(user.id)} className="p-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold">Delete</button>
-                           </div>
-                      </div>
-                  ))}
+                  {users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.mobile.includes(searchTerm)).map(user => {
+                      const isOnline = user.lastActiveTime && (new Date().getTime() - new Date(user.lastActiveTime).getTime() < 5 * 60 * 1000);
+                      return (
+                          <div key={user.id} className="flex flex-col md:flex-row justify-between md:items-center p-4 border rounded-2xl hover:bg-slate-50 transition-colors gap-4">
+                               <div className="flex items-start gap-3">
+                                   <div className={`w-3 h-3 rounded-full mt-1.5 ${isOnline ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-slate-300'}`} title={isOnline ? 'Online' : 'Offline'}></div>
+                                   <div>
+                                       <div className="font-black text-slate-800 flex items-center gap-2">
+                                           {user.name}
+                                           {user.role === 'ADMIN' && <span className="bg-red-100 text-red-600 text-[10px] px-2 py-0.5 rounded-full uppercase">Admin</span>}
+                                       </div>
+                                       <div className="text-xs text-slate-500 font-mono mt-0.5 mb-1">{user.mobile} • Credits: <span className="text-blue-600 font-bold">{user.credits}</span></div>
+                                       {user.subscriptionPlanId && <div className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full inline-block font-bold">💎 {localSettings.subscriptionPlans?.find(p => p.id === user.subscriptionPlanId)?.name} (Exp: {new Date(user.subscriptionExpiry || '').toLocaleDateString()})</div>}
+                                   </div>
+                               </div>
+                               <div className="flex gap-2 flex-wrap">
+                                   <button onClick={() => setDmUser(user)} className="px-3 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold flex items-center gap-1"><MessageSquare size={14} /> Msg</button>
+                                   <button onClick={() => { setEditingUser(user); setEditUserCredits(user.credits); setEditUserPass(user.password); }} className="px-3 py-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-xl text-xs font-bold flex items-center gap-1"><Edit3 size={14} /> Edit/Sub</button>
+                                   {onImpersonate && user.role !== 'ADMIN' && <button onClick={() => onImpersonate(user)} className="px-3 py-2 bg-green-100 text-green-600 hover:bg-green-200 rounded-xl text-xs font-bold flex items-center gap-1"><Eye size={14} /> View</button>}
+                                   <button onClick={() => deleteUser(user.id)} className="px-3 py-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-xl text-xs font-bold flex items-center gap-1"><Trash2 size={14} /> Del</button>
+                               </div>
+                          </div>
+                      );
+                  })}
                   {users.length === 0 && <p className="text-center text-slate-400 py-10">No users found.</p>}
               </div>
           </div>
