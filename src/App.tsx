@@ -149,9 +149,6 @@ const App: React.FC = () => {
           setShowTerms(true);
       }
 
-      const hasSeenWelcome = localStorage.getItem('nst_has_seen_welcome');
-      if (!hasSeenWelcome && hasAcceptedTerms) setState(prev => ({ ...prev, showWelcome: true }));
-
       const loggedInUserStr = localStorage.getItem('nst_current_user');
       if (loggedInUserStr) {
         const user: User = JSON.parse(loggedInUserStr);
@@ -178,7 +175,7 @@ const App: React.FC = () => {
           selectedClass: user.classLevel || null,
           selectedStream: user.stream || null,
           language: lang,
-          showWelcome: !hasSeenWelcome && !!hasAcceptedTerms
+          showWelcome: false
         }));
       }
   }, []);
@@ -216,9 +213,6 @@ const App: React.FC = () => {
   const handleAcceptTerms = () => {
       localStorage.setItem('nst_terms_accepted', 'true');
       setShowTerms(false);
-      // Show welcome if not seen
-      const hasSeenWelcome = localStorage.getItem('nst_has_seen_welcome');
-      if (!hasSeenWelcome) setState(prev => ({ ...prev, showWelcome: true }));
   };
 
   // Timer Logic
