@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { LessonContent, Subject, ClassLevel, Chapter, MCQItem, ContentType } from '../types';
-import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, AlertCircle, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, AlertCircle, HelpCircle, Edit } from 'lucide-react';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { VideoPlayer } from './VideoPlayer';
@@ -15,6 +15,8 @@ interface Props {
   loading: boolean;
   onBack: () => void;
   onMCQComplete?: (count: number) => void;
+  isAdmin?: boolean;
+  onEdit?: () => void;
 }
 
 export const LessonView: React.FC<Props> = ({
@@ -24,7 +26,9 @@ export const LessonView: React.FC<Props> = ({
   chapter,
   loading,
   onBack,
-  onMCQComplete
+  onMCQComplete,
+  isAdmin,
+  onEdit
 }) => {
   const [mcqState, setMcqState] = useState<Record<number, number | null>>({});
   const [showResults, setShowResults] = useState(false);
@@ -88,9 +92,16 @@ export const LessonView: React.FC<Props> = ({
       return (
           <div className="flex flex-col h-full bg-slate-50 animate-in fade-in">
                <div className="flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-                   <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold text-sm bg-slate-100 px-3 py-2 rounded-lg hover:bg-slate-200">
-                       <ArrowLeft size={16} /> Exit
-                   </button>
+                   <div className="flex items-center gap-2">
+                       <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold text-sm bg-slate-100 px-3 py-2 rounded-lg hover:bg-slate-200">
+                           <ArrowLeft size={16} /> Exit
+                       </button>
+                       {isAdmin && (
+                           <button onClick={onEdit} className="flex items-center gap-2 text-white font-bold text-sm bg-blue-600 px-3 py-2 rounded-lg hover:bg-blue-700 shadow-md">
+                               <Edit size={16} /> Edit
+                           </button>
+                       )}
+                   </div>
                    <div className="text-right">
                        <h3 className="font-black text-slate-800 text-sm uppercase">{content.type === 'WEEKLY_TEST' ? 'Weekly Exam' : 'Practice Test'}</h3>
                        <span className="text-xs font-bold text-blue-600">{Object.keys(mcqState).length}/{content.mcqData.length} Done</span>
@@ -202,9 +213,16 @@ export const LessonView: React.FC<Props> = ({
       return (
           <div className="flex flex-col h-[calc(100vh-80px)] bg-slate-100">
               <div className="flex items-center justify-between p-3 bg-white border-b border-slate-200 shadow-sm">
-                   <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold text-sm hover:text-slate-900">
-                       <ArrowLeft size={18} /> Back
-                   </button>
+                   <div className="flex items-center gap-2">
+                       <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold text-sm hover:text-slate-900">
+                           <ArrowLeft size={18} /> Back
+                       </button>
+                       {isAdmin && (
+                           <button onClick={onEdit} className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors" title="Edit Content">
+                               <Edit size={18} />
+                           </button>
+                       )}
+                   </div>
                    <h3 className="font-bold text-slate-800 text-sm truncate max-w-[200px]">{chapter.title}</h3>
                    <div className="w-10"></div> {/* Spacer for alignment */}
               </div>
@@ -217,9 +235,10 @@ export const LessonView: React.FC<Props> = ({
                              className="w-full h-full border-0"
                              allowFullScreen
                              title="PDF Viewer"
+                             sandbox="allow-scripts allow-same-origin allow-popups-to-escape-sandbox"
                          />
                          {/* TRANSPARENT BLOCKER for Top-Right 'Pop-out' Button */}
-                         <div className="absolute top-0 right-0 w-20 h-20 z-10 bg-transparent"></div>
+                         <div className="absolute top-0 right-0 w-24 h-24 z-10 bg-transparent"></div>
                      </div>
                   ) : (
                       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -241,14 +260,22 @@ export const LessonView: React.FC<Props> = ({
     <div className="bg-white min-h-screen pb-20 animate-in fade-in">
        {/* Notes Header */}
        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-sm">
-           <button onClick={onBack} className="p-2 -ml-2 text-slate-500 hover:text-slate-900 transition-colors">
-               <ArrowLeft size={20} />
-           </button>
+           <div className="flex items-center gap-2">
+               <button onClick={onBack} className="p-2 -ml-2 text-slate-500 hover:text-slate-900 transition-colors">
+                   <ArrowLeft size={20} />
+               </button>
+           </div>
            <div className="text-center">
                <h3 className="font-bold text-slate-800 text-sm leading-tight">{chapter.title}</h3>
                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{content.subtitle}</p>
            </div>
-           <div className="w-8"></div> {/* Spacer to balance Back button */}
+           <div className="w-8 flex justify-end">
+               {isAdmin && (
+                   <button onClick={onEdit} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
+                       <Edit size={20} />
+                   </button>
+               )}
+           </div>
        </div>
 
        {/* Notes Body */}

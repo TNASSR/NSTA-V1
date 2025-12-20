@@ -115,6 +115,7 @@ const App: React.FC = () => {
   const [tempSelectedChapter, setTempSelectedChapter] = useState<Chapter | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [generationDataReady, setGenerationDataReady] = useState(false);
+  const [adminInitialState, setAdminInitialState] = useState<any>(null);
 
   // GLOBAL STUDY TIMER
   const [dailyStudySeconds, setDailyStudySeconds] = useState(0);
@@ -358,6 +359,40 @@ const App: React.FC = () => {
 
   const handleLoadingAnimationComplete = () => { setState(prev => ({ ...prev, loading: false, view: 'LESSON' })); };
 
+  const handleEditLesson = () => {
+       if (!state.lessonContent || !state.selectedChapter) return;
+       const mapping: any = {
+           'MCQ_SIMPLE': 'CONTENT_MCQ',
+           'MCQ_ANALYSIS': 'CONTENT_MCQ',
+           'WEEKLY_TEST': 'CONTENT_TEST',
+           'NOTES_SIMPLE': 'CONTENT_PDF',
+           'NOTES_PREMIUM': 'CONTENT_PDF',
+           'PDF_FREE': 'CONTENT_PDF',
+           'PDF_PREMIUM': 'CONTENT_PDF',
+           'PDF_VIEWER': 'CONTENT_PDF',
+           'VIDEO_LIST': 'CONTENT_PDF'
+       };
+       const tab = mapping[state.lessonContent.type] || 'CONTENT_PDF';
+
+       const initData = {
+           activeTab: tab,
+           board: state.selectedBoard,
+           classLevel: state.selectedClass,
+           stream: state.selectedStream,
+           subject: state.selectedSubject,
+           chapterId: state.selectedChapter.id
+       };
+
+       setAdminInitialState(initData);
+
+       // Revert admin if impersonating
+       if (state.originalAdmin) {
+           setState(prev => ({ ...prev, user: prev.originalAdmin, originalAdmin: null, view: 'ADMIN_DASHBOARD' }));
+       } else {
+           setState(prev => ({ ...prev, view: 'ADMIN_DASHBOARD' }));
+       }
+  };
+
   const handleMCQProgress = (score: number) => {
       if (!state.user || !state.selectedSubject) return;
 
@@ -541,7 +576,7 @@ const App: React.FC = () => {
             <Auth onLogin={handleLogin} logActivity={logActivity} />
         ) : (
             <>
-                {state.view === 'ADMIN_DASHBOARD' && state.user.role === 'ADMIN' && <AdminDashboard onNavigate={(v) => setState(prev => ({...prev, view: v}))} settings={state.settings} onUpdateSettings={updateSettings} onImpersonate={handleImpersonate} logActivity={logActivity} />}
+                {state.view === 'ADMIN_DASHBOARD' && state.user.role === 'ADMIN' && <AdminDashboard onNavigate={(v) => setState(prev => ({...prev, view: v}))} settings={state.settings} onUpdateSettings={updateSettings} onImpersonate={handleImpersonate} logActivity={logActivity} initialState={adminInitialState} />}
 
                 {state.view === 'STUDENT_DASHBOARD' as any && <StudentDashboard user={state.user} dailyStudySeconds={dailyStudySeconds} onSubjectSelect={handleSubjectSelect} onRedeemSuccess={u => setState(prev => ({...prev, user: u}))} settings={state.settings} />}
 
@@ -550,7 +585,7 @@ const App: React.FC = () => {
                 {state.view === 'STREAMS' && <StreamSelection onSelect={handleStreamSelect} onBack={goBack} />}
                 {state.view === 'SUBJECTS' && state.selectedClass && <SubjectSelection classLevel={state.selectedClass} stream={state.selectedStream} onSelect={handleSubjectSelect} onBack={goBack} />}
                 {state.view === 'CHAPTERS' && state.selectedSubject && <ChapterSelection chapters={state.chapters} subject={state.selectedSubject} classLevel={state.selectedClass!} loading={state.loading && state.view === 'CHAPTERS'} user={state.user} onSelect={onChapterClick} onBack={goBack} threshold={state.settings.mcqUnlockThreshold || 100} />}
-                {state.view === 'LESSON' && state.lessonContent && <LessonView content={state.lessonContent} subject={state.selectedSubject!} classLevel={state.selectedClass!} chapter={state.selectedChapter!} loading={false} onBack={goBack} onMCQComplete={handleMCQProgress} />}
+                {state.view === 'LESSON' && state.lessonContent && <LessonView content={state.lessonContent} subject={state.selectedSubject!} classLevel={state.selectedClass!} chapter={state.selectedChapter!} loading={false} onBack={goBack} onMCQComplete={handleMCQProgress} isAdmin={state.user.role === 'ADMIN' || !!state.originalAdmin} onEdit={handleEditLesson} />}
             </>
         )}
       </main>

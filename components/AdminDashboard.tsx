@@ -8,12 +8,22 @@ import { saveChapterData, bulkSaveLinks, checkFirebaseConnection } from '../serv
 // @ts-ignore
 import JSZip from 'jszip';
 
+interface AdminInitialState {
+    activeTab?: AdminTab;
+    board?: Board;
+    classLevel?: ClassLevel;
+    stream?: Stream;
+    subject?: Subject;
+    chapterId?: string;
+}
+
 interface Props {
   onNavigate: (view: ViewState) => void;
   settings?: SystemSettings;
   onUpdateSettings?: (s: SystemSettings) => void;
   onImpersonate?: (user: User) => void;
   logActivity: (action: string, details: string) => void;
+  initialState?: AdminInitialState;
 }
 
 // --- MERGED TAB DEFINITIONS ---
@@ -31,9 +41,10 @@ interface ContentConfig {
     manualMcqData?: MCQItem[];
     weeklyTestMcqData?: MCQItem[];
     videoLinks?: string[];
+    isComingSoon?: boolean;
 }
 
-export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdateSettings, onImpersonate, logActivity }) => {
+export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdateSettings, onImpersonate, logActivity, initialState }) => {
   // --- GLOBAL STATE ---
   const [activeTab, setActiveTab] = useState<AdminTab>('DASHBOARD');
   const [users, setUsers] = useState<User[]>([]);
@@ -52,7 +63,7 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   // --- IMPORT MODAL STATE ---
   const [showImportModal, setShowImportModal] = useState(false);
   const [pasteData, setPasteData] = useState('');
-  const [importTarget, setImportTarget] = useState<'MEGA' | 'CHAPTER_MCQ' | 'CHAPTER_TEST'>('MEGA');
+  const [importTarget, setImportTarget] = useState<'MEGA' | 'CHAPTER_MCQ' | 'CHAPTER_TEST' | 'BULK_CONTENT'>('MEGA');
 
   // --- DATABASE EDITOR ---
   const [dbKey, setDbKey] = useState('nst_users');
@@ -138,6 +149,49 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
       const interval = setInterval(loadData, 5000);
       return () => clearInterval(interval);
   }, []);
+
+  // --- HANDLE INITIAL STATE FROM LESSON VIEW ---
+  useEffect(() => {
+      if (initialState) {
+          if (initialState.activeTab) setActiveTab(initialState.activeTab);
+          if (initialState.board) setSelBoard(initialState.board);
+          if (initialState.classLevel) setSelClass(initialState.classLevel);
+          if (initialState.stream) setSelStream(initialState.stream);
+
+          if (initialState.subject) {
+             setSelSubject(initialState.subject);
+             // Trigger fetch and load
+             setIsLoadingChapters(true);
+             fetchChapters(initialState.board || 'CBSE', initialState.classLevel || '10', initialState.stream || 'Science', initialState.subject, 'English')
+                 .then(ch => {
+                     setSelChapters(ch);
+                     if (initialState.chapterId) {
+                         const chapter = ch.find(c => c.id === initialState.chapterId);
+                         if (chapter) {
+                             // We need to load content but loadChapterContent relies on state that might not be updated yet in closure?
+                             // No, loadChapterContent uses stored variables but editingChapterId is state.
+                             // Actually loadChapterContent sets editConfig.
+                             setEditingChapterId(initialState.chapterId!);
+                             // Manually call logic of loadChapterContent here to be safe
+                             const key = `nst_content_${initialState.board}_${initialState.classLevel}${['11','12'].includes(initialState.classLevel||'') ? `-${initialState.stream}` : ''}_${initialState.subject?.name}_${initialState.chapterId}`;
+                             const stored = localStorage.getItem(key);
+                             if (stored) {
+                                 const data = JSON.parse(stored);
+                                 setEditConfig({ ...data, videoLinks: data.videoLinks || [] });
+                                 setEditingMcqs(data.manualMcqData || []);
+                                 setEditingTestMcqs(data.weeklyTestMcqData || []);
+                             } else {
+                                 setEditConfig({ freeLink: '', premiumLink: '', price: localSettings.globalContentPrices?.pdf || 5, videoLinks: [] });
+                                 setEditingMcqs([]);
+                                 setEditingTestMcqs([]);
+                             }
+                         }
+                     }
+                 })
+                 .finally(() => setIsLoadingChapters(false));
+          }
+      }
+  }, [initialState]);
 
   useEffect(() => {
       if (activeTab === 'DATABASE') setDbContent(localStorage.getItem(dbKey) || '');
@@ -231,39 +285,78 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   };
 
   // --- IMPORT LOGIC ---
-  const openImportModal = (target: 'MEGA' | 'CHAPTER_MCQ' | 'CHAPTER_TEST') => {
+  const openImportModal = (target: 'MEGA' | 'CHAPTER_MCQ' | 'CHAPTER_TEST' | 'BULK_CONTENT') => {
       setImportTarget(target); setShowImportModal(true);
   };
 
   const handleBulkImport = () => {
     if (!pasteData.trim()) return;
     const rows = pasteData.trim().split('\n');
-    const newMcqs: MCQItem[] = [];
-    rows.forEach(row => {
-        const columns = row.includes('\t') ? row.split('\t') : row.split(',');
-        if (columns.length >= 6) {
-            const question = columns[0].trim();
-            const options = [columns[1].trim(), columns[2].trim(), columns[3].trim(), columns[4].trim()];
-            let correctChar = columns[5].trim().toUpperCase();
-            let correctIdx = 0;
-            if (['A', '1'].includes(correctChar)) correctIdx = 0;
-            else if (['B', '2'].includes(correctChar)) correctIdx = 1;
-            else if (['C', '3'].includes(correctChar)) correctIdx = 2;
-            else if (['D', '4'].includes(correctChar)) correctIdx = 3;
-            newMcqs.push({ question, options, correctAnswer: correctIdx, explanation: columns[6] ? columns[6].trim() : "Verified" });
-        }
-    });
 
-    if (importTarget === 'MEGA') {
-        const final = [...megaQuestions, ...newMcqs];
-        setMegaQuestions(final); localStorage.setItem('nst_mega_test_questions', JSON.stringify(final));
-    } else if (importTarget === 'CHAPTER_MCQ') {
-        setEditingMcqs([...editingMcqs, ...newMcqs]);
+    if (importTarget === 'BULK_CONTENT') {
+        // Format: Chapter Title | Type | Link | Price
+        let count = 0;
+        rows.forEach(row => {
+            const cols = row.includes('\t') ? row.split('\t') : row.split(',');
+            if (cols.length >= 3 && selSubject) {
+                const title = cols[0].trim();
+                const typeRaw = cols[1].trim().toUpperCase(); // PDF, VIDEO, NOTES
+                const link = cols[2].trim();
+                const price = cols[3] ? Number(cols[3].trim()) : 0;
+
+                // Find chapter
+                const chapter = selChapters.find(c => c.title.toLowerCase().includes(title.toLowerCase()));
+                if (chapter) {
+                    const key = `nst_content_${selBoard}_${selClass}${['11','12'].includes(selClass||'') ? `-${selStream}` : ''}_${selSubject.name}_${chapter.id}`;
+
+                    // Determine Type
+                    let contentType: any = 'PDF_FREE';
+                    if (typeRaw.includes('PREMIUM')) contentType = 'PDF_PREMIUM';
+                    else if (typeRaw.includes('VIDEO')) contentType = 'VIDEO_LIST';
+                    else if (typeRaw.includes('NOTE')) contentType = 'NOTES_PREMIUM';
+
+                    const newData = {
+                        freeLink: contentType === 'PDF_FREE' ? link : '',
+                        premiumLink: contentType === 'PDF_PREMIUM' ? link : '',
+                        price: price,
+                        videoLinks: contentType === 'VIDEO_LIST' ? [link] : [],
+                        isComingSoon: false // Publish immediately on bulk import
+                    };
+
+                    localStorage.setItem(key, JSON.stringify(newData));
+                    count++;
+                }
+            }
+        });
+        alert(`✅ Bulk Updated ${count} Chapters!`);
     } else {
-        setEditingTestMcqs([...editingTestMcqs, ...newMcqs]);
+        const newMcqs: MCQItem[] = [];
+        rows.forEach(row => {
+            const columns = row.includes('\t') ? row.split('\t') : row.split(',');
+            if (columns.length >= 6) {
+                const question = columns[0].trim();
+                const options = [columns[1].trim(), columns[2].trim(), columns[3].trim(), columns[4].trim()];
+                let correctChar = columns[5].trim().toUpperCase();
+                let correctIdx = 0;
+                if (['A', '1'].includes(correctChar)) correctIdx = 0;
+                else if (['B', '2'].includes(correctChar)) correctIdx = 1;
+                else if (['C', '3'].includes(correctChar)) correctIdx = 2;
+                else if (['D', '4'].includes(correctChar)) correctIdx = 3;
+                newMcqs.push({ question, options, correctAnswer: correctIdx, explanation: columns[6] ? columns[6].trim() : "Verified" });
+            }
+        });
+
+        if (importTarget === 'MEGA') {
+            const final = [...megaQuestions, ...newMcqs];
+            setMegaQuestions(final); localStorage.setItem('nst_mega_test_questions', JSON.stringify(final));
+        } else if (importTarget === 'CHAPTER_MCQ') {
+            setEditingMcqs([...editingMcqs, ...newMcqs]);
+        } else {
+            setEditingTestMcqs([...editingTestMcqs, ...newMcqs]);
+        }
+        alert(`✅ Successfully imported ${newMcqs.length} questions!`);
     }
     setPasteData(''); setShowImportModal(false);
-    alert(`✅ Successfully imported ${newMcqs.length} questions!`);
   };
 
   // --- DEPLOYMENT ---
@@ -405,16 +498,21 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   };
 
   const loadChapterContent = (chId: string) => {
-      const key = `nst_content_${selBoard}_${selClass}-${selStream}_${selSubject?.name}_${chId}`;
+      const streamKey = (selClass === '11' || selClass === '12') ? `-${selStream}` : '';
+      const key = `nst_content_${selBoard}_${selClass}${streamKey}_${selSubject?.name}_${chId}`;
       const stored = localStorage.getItem(key);
       if (stored) {
           const data = JSON.parse(stored);
-          setEditConfig({ ...data, videoLinks: data.videoLinks || [] });
+          setEditConfig({
+              ...data,
+              videoLinks: data.videoLinks || [],
+              isComingSoon: data.isComingSoon !== undefined ? data.isComingSoon : true
+          });
           setEditingMcqs(data.manualMcqData || []);
           setEditingTestMcqs(data.weeklyTestMcqData || []);
       }
       else {
-          setEditConfig({ freeLink: '', premiumLink: '', price: localSettings.globalContentPrices?.pdf || 5, videoLinks: [] });
+          setEditConfig({ freeLink: '', premiumLink: '', price: localSettings.globalContentPrices?.pdf || 5, videoLinks: [], isComingSoon: true });
           setEditingMcqs([]);
           setEditingTestMcqs([]);
       }
@@ -423,7 +521,8 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
 
   const saveChapterContent = () => {
       if (!editingChapterId || !selSubject) return;
-      const key = `nst_content_${selBoard}_${selClass}-${selStream}_${selSubject.name}_${editingChapterId}`;
+      const streamKey = (selClass === '11' || selClass === '12') ? `-${selStream}` : '';
+      const key = `nst_content_${selBoard}_${selClass}${streamKey}_${selSubject.name}_${editingChapterId}`;
       const newData = { ...editConfig, manualMcqData: editingMcqs, weeklyTestMcqData: editingTestMcqs };
       localStorage.setItem(key, JSON.stringify(newData));
       if (isFirebaseConnected) { saveChapterData(key, newData); alert("✅ Saved to Firebase!"); } else alert("⚠️ Saved Locally.");
@@ -456,11 +555,18 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
           <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl animate-in zoom-in">
                   <div className="bg-slate-50 p-6 border-b flex justify-between items-center">
-                      <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><ClipboardPaste className="text-blue-600" /> Import Questions ({importTarget})</h3>
+                      <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><ClipboardPaste className="text-blue-600" /> Bulk Import ({importTarget})</h3>
                       <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-slate-200 rounded-full"><X size={20} /></button>
                   </div>
                   <div className="p-6">
-                      <textarea value={pasteData} onChange={e => setPasteData(e.target.value)} className="w-full h-64 p-4 border-2 border-dashed border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Paste: Question | A | B | C | D | Correct (A/B/C/D)" />
+                      {importTarget === 'BULK_CONTENT' ? (
+                          <>
+                              <div className="bg-blue-50 p-3 mb-4 rounded-lg text-xs text-blue-800 font-mono">Format: Chapter Title | Type (PDF/VIDEO/NOTE) | Link | Price</div>
+                              <textarea value={pasteData} onChange={e => setPasteData(e.target.value)} className="w-full h-64 p-4 border-2 border-dashed border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Chemical Reactions | PDF | https://drive... | 5" />
+                          </>
+                      ) : (
+                          <textarea value={pasteData} onChange={e => setPasteData(e.target.value)} className="w-full h-64 p-4 border-2 border-dashed border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Paste: Question | A | B | C | D | Correct (A/B/C/D)" />
+                      )}
                       <button onClick={handleBulkImport} className="w-full mt-4 py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2"><Zap size={18} /> Process Import</button>
                   </div>
               </div>
@@ -813,13 +919,19 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
              </div>
 
              {selSubject && !editingChapterId && (
-                 <div className="space-y-2">
-                     {selChapters.map(ch => (
-                         <div key={ch.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
-                             <span className="font-bold text-sm">{ch.title}</span>
-                             <button onClick={() => loadChapterContent(ch.id)} className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-bold">Edit</button>
-                         </div>
-                     ))}
+                 <div>
+                     <div className="flex justify-between mb-4">
+                         <h4 className="font-bold text-slate-700">{selChapters.length} Chapters</h4>
+                         <button onClick={() => openImportModal('BULK_CONTENT')} className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-2"><Table size={14} /> Bulk Upload Content</button>
+                     </div>
+                     <div className="space-y-2">
+                         {selChapters.map(ch => (
+                             <div key={ch.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
+                                 <span className="font-bold text-sm truncate max-w-[200px]">{ch.title}</span>
+                                 <button onClick={() => loadChapterContent(ch.id)} className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-bold">Edit</button>
+                             </div>
+                         ))}
+                     </div>
                  </div>
              )}
 
@@ -832,6 +944,16 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
                             <button onClick={saveChapterContent} className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold">Save</button>
                             <button onClick={() => setEditingChapterId(null)} className="text-slate-500 text-xs underline">Close</button>
                         </div>
+                     </div>
+
+                     <div className="mb-4 bg-white p-3 rounded-lg border flex items-center justify-between">
+                         <span className="text-xs font-bold uppercase text-slate-500">Status</span>
+                         <button
+                             onClick={() => setEditConfig({...editConfig, isComingSoon: !editConfig.isComingSoon})}
+                             className={`px-4 py-1.5 rounded-full text-xs font-black uppercase transition-all ${!editConfig.isComingSoon ? 'bg-green-500 text-white shadow-lg' : 'bg-slate-200 text-slate-500'}`}
+                         >
+                             {!editConfig.isComingSoon ? 'PUBLISHED' : 'DRAFT / COMING SOON'}
+                         </button>
                      </div>
 
                      <div className="max-h-[400px] overflow-y-auto">

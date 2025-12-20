@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Chapter, ContentType } from '../types';
-import { Crown, BookOpen, Lock, X, HelpCircle, FileText, Printer, Star, Zap, ChevronRight, PlayCircle, BarChart } from 'lucide-react';
+import { Crown, BookOpen, Lock, X, HelpCircle, FileText, Printer, Star, Zap, ChevronRight, PlayCircle, BarChart, Video } from 'lucide-react';
 
 interface Props {
   chapter: Chapter;
