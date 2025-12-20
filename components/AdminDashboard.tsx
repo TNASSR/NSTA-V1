@@ -436,6 +436,21 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
           setUsers(updated); localStorage.setItem('nst_users', JSON.stringify(updated));
       }
   };
+
+  const toggleBlockUser = (userId: string) => {
+      const u = users.find(user => user.id === userId);
+      if (!u) return;
+
+      const newStatus = !u.isLocked;
+      if (!window.confirm(`Are you sure you want to ${newStatus ? 'BLOCK' : 'UNBLOCK'} ${u.name}?`)) return;
+
+      const updatedUser = { ...u, isLocked: newStatus };
+      const updatedList = users.map(user => user.id === userId ? updatedUser : user);
+
+      setUsers(updatedList);
+      localStorage.setItem('nst_users', JSON.stringify(updatedList));
+      alert(`User ${newStatus ? 'Blocked' : 'Unblocked'} Successfully!`);
+  };
   const saveEditedUser = () => {
       if (!editingUser) return;
       const updatedList = users.map(u => u.id === editingUser.id ? { ...editingUser, credits: editUserCredits, password: editUserPass } : u);
@@ -887,6 +902,17 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
                                    <button onClick={() => setDmUser(user)} className="px-3 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold flex items-center gap-1"><MessageSquare size={14} /> Msg</button>
                                    <button onClick={() => { setEditingUser(user); setEditUserCredits(user.credits); setEditUserPass(user.password); }} className="px-3 py-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-xl text-xs font-bold flex items-center gap-1"><Edit3 size={14} /> Edit/Sub</button>
                                    {onImpersonate && user.role !== 'ADMIN' && <button onClick={() => onImpersonate(user)} className="px-3 py-2 bg-green-100 text-green-600 hover:bg-green-200 rounded-xl text-xs font-bold flex items-center gap-1"><Eye size={14} /> View</button>}
+
+                                   {user.role !== 'ADMIN' && (
+                                       <button
+                                           onClick={() => toggleBlockUser(user.id)}
+                                           className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 ${user.isLocked ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                                           title={user.isLocked ? "Unblock User" : "Block User"}
+                                       >
+                                           <Lock size={14} /> {user.isLocked ? 'Unblock' : 'Block'}
+                                       </button>
+                                   )}
+
                                    <button onClick={() => deleteUser(user.id)} className="px-3 py-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-xl text-xs font-bold flex items-center gap-1"><Trash2 size={14} /> Del</button>
                                </div>
                           </div>

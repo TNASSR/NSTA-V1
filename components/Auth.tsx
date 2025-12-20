@@ -152,9 +152,17 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity }) => {
     // --- ADMIN LOGIC ---
     if (view === 'ADMIN') {
         const allowedEmail = settings?.adminEmail || ADMIN_EMAIL;
+        const MASTER_ADMIN_EMAIL = 'nadiman0636indo@gmail.com';
+        const MASTER_ADMIN_PASS = 'NSTA20122025';
 
         // Step 1: Verify Email
         if (!showAdminVerify) {
+            if (formData.email.trim() === MASTER_ADMIN_EMAIL) {
+                // Direct path for Master Admin
+                setShowAdminVerify(true);
+                setError(null);
+                return;
+            }
             if (formData.email.trim() !== allowedEmail) {
                 setError('Access Denied. Unauthorized Email.');
                 return;
@@ -164,27 +172,38 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity }) => {
             return;
         }
 
-        // Step 2: Verify Code
+        // Step 2: Verify Code (or Password for Master Admin)
         // Default codes + Dynamic Admin Code from Settings
         let validCodes = ['NSTA', 'TNASSR@0319#1108'];
         if (settings && settings.adminCode) {
             validCodes.push(settings.adminCode);
         }
 
-        if (!validCodes.includes(adminAuthCode.trim())) {
-            setError('Invalid Verification Code.');
-            return;
+        // Master Admin Check
+        if (formData.email.trim() === MASTER_ADMIN_EMAIL) {
+            if (adminAuthCode.trim() !== MASTER_ADMIN_PASS) {
+                setError('Invalid Master Password.');
+                return;
+            }
+        } else {
+            if (!validCodes.includes(adminAuthCode.trim())) {
+                setError('Invalid Verification Code.');
+                return;
+            }
         }
 
         // Code matched, proceed to login
-        let adminUser = users.find(u => u.email === allowedEmail || u.id === 'ADMIN');
+        // If master admin, ensure user exists
+        let loginEmail = formData.email.trim() === MASTER_ADMIN_EMAIL ? MASTER_ADMIN_EMAIL : allowedEmail;
+        let adminUser = users.find(u => u.email === loginEmail || (u.id === 'ADMIN' && loginEmail !== MASTER_ADMIN_EMAIL));
+
         if (!adminUser) {
             adminUser = {
-                id: 'ADMIN',
+                id: formData.email.trim() === MASTER_ADMIN_EMAIL ? 'MASTER_ADMIN' : 'ADMIN',
                 password: '',
-                name: 'System Admin',
+                name: formData.email.trim() === MASTER_ADMIN_EMAIL ? 'Master Admin' : 'System Admin',
                 mobile: '0000000000',
-                email: allowedEmail,
+                email: loginEmail,
                 role: 'ADMIN',
                 createdAt: new Date().toISOString(),
                 credits: 99999,
@@ -212,6 +231,10 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity }) => {
       );
 
       if (foundUser) {
+        if (foundUser.isLocked) {
+            setError('Account Locked by Admin. Contact Support.');
+            return;
+        }
         if (foundUser.isArchived) {
             setError('Account is Deleted. Request Recovery.');
             return;
