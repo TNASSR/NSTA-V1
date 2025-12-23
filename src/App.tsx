@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ClassLevel, Subject, Chapter, AppState, Board, Stream, User, ContentType, SystemSettings
 } from './types';
+import { saveUserToLive, updateUserStatus } from './firebase';
 import { fetchChapters, fetchLessonContent } from './services/gemini';
 import { BoardSelection } from './components/BoardSelection';
 import { ClassSelection } from './components/ClassSelection';
@@ -241,6 +242,10 @@ const App: React.FC = () => {
         setDailyStudySeconds(prev => {
             const next = prev + 1;
             localStorage.setItem('nst_daily_study_seconds', next.toString());
+            // Sync status to Firebase
+            if (state.user) {
+                updateUserStatus(state.user.id, next);
+            }
             return next;
         });
     }, 1000);
@@ -260,6 +265,9 @@ const App: React.FC = () => {
         alert("Account Locked. Contact Admin.");
         return;
     }
+    // Save user to live database
+    saveUserToLive(user);
+
     localStorage.setItem('nst_current_user', JSON.stringify(user));
     localStorage.setItem('nst_has_seen_welcome', 'true');
     

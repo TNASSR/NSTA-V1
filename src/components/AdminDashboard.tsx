@@ -9,6 +9,8 @@ import { LessonView } from './LessonView';
 import { AudioStudio } from './AudioStudio';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AdminDevAssistant } from './AdminDevAssistant';
+import { rtdb, saveUserToLive, bulkSaveLinks, subscribeToUsers } from '../firebase';
+import { ref, set } from 'firebase/database';
 
 interface Props {
   onNavigate: (view: ViewState) => void;
@@ -110,9 +112,18 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
 
   useEffect(() => { loadData(); calculateStorage(); }, [activeTab]);
 
+  useEffect(() => {
+      // Live User Sync
+      const unsubscribe = subscribeToUsers((liveUsers) => {
+          setUsers(liveUsers);
+      });
+      return () => unsubscribe();
+  }, []);
+
   const loadData = () => {
-    const storedUsersStr = localStorage.getItem('nst_users');
-    if (storedUsersStr) setUsers(JSON.parse(storedUsersStr));
+    // Legacy load removed/minimized as we use live sync above for users
+    // const storedUsersStr = localStorage.getItem('nst_users');
+    // if (storedUsersStr) setUsers(JSON.parse(storedUsersStr));
 
     const storedCodesStr = localStorage.getItem('nst_admin_codes');
     if (storedCodesStr) setCodes(JSON.parse(storedCodesStr));
@@ -245,13 +256,17 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
       const newCodes: GiftCode[] = [];
       for (let i = 0; i < giftQuantity; i++) {
           const code = `NST-${Math.floor(Math.random()*10000)}-${Math.random().toString(36).substring(7).toUpperCase()}`;
-          newCodes.push({ code, amount: Number(giftAmount), createdAt: new Date().toISOString(), isRedeemed: false, generatedBy: 'ADMIN' });
+          const codeObj = { code, amount: Number(giftAmount), createdAt: new Date().toISOString(), isRedeemed: false, generatedBy: 'ADMIN' };
+          newCodes.push(codeObj);
+
+          // Save to Cloud
+          set(ref(rtdb, 'redeem_codes/' + code), codeObj);
       }
       const updatedCodes = [...newCodes, ...codes];
       setCodes(updatedCodes);
       localStorage.setItem('nst_admin_codes', JSON.stringify(updatedCodes));
       setGiftAmount(''); setGiftQuantity(1);
-      alert(`${giftQuantity} Codes Generated!`);
+      alert(`${giftQuantity} Codes Generated and Cloud Synced!`);
   };
 
   const handleDeleteCode = (codeStr: string) => {
@@ -272,7 +287,7 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   
   const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => { 
       const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); 
-      reader.onload = (event) => { try { const data = JSON.parse(event.target?.result as string); if (window.confirm("⚠️ OVERWRITE all data?")) { 
+      reader.onload = async (event) => { try { const data = JSON.parse(event.target?.result as string); if (window.confirm("⚠️ OVERWRITE all data?")) {
           if (data.users) localStorage.setItem('nst_users', data.users); 
           if (data.chat) localStorage.setItem('nst_universal_chat', data.chat); 
           if (data.codes) localStorage.setItem('nst_admin_codes', data.codes); 
@@ -280,8 +295,13 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
           if (data.settings) localStorage.setItem('nst_system_settings', data.settings); 
           if (data.posts) localStorage.setItem('nst_iic_posts', data.posts); 
           if (data.payments) localStorage.setItem('nst_payment_requests', data.payments);
-          if (data.customLessons) { Object.keys(data.customLessons).forEach(k => { localStorage.setItem(k, data.customLessons[k]); }); }
-          alert("Restoration Complete!"); window.location.reload(); } } catch (err) { alert("Invalid Backup File!"); } }; reader.readAsText(file); 
+
+          if (data.customLessons) {
+              // Bulk upload to Cloud
+              await bulkSaveLinks(data.customLessons);
+              Object.keys(data.customLessons).forEach(k => { localStorage.setItem(k, data.customLessons[k]); });
+          }
+          alert("Restoration & Cloud Sync Complete!"); window.location.reload(); } } catch (err) { alert("Invalid Backup File!"); } }; reader.readAsText(file);
   };
 
   const clearData = (key: string, label: string) => { 
@@ -316,6 +336,9 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
 
   const updateSingleUser = (u: User) => {
       setEditingUser(u);
+      // Save to Cloud
+      saveUserToLive(u);
+
       const updatedUsers = users.map(user => user.id === u.id ? u : user);
       setUsers(updatedUsers);
       localStorage.setItem('nst_users', JSON.stringify(updatedUsers));
