@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Gift, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { User, GiftCode } from '../types';
+import { rtdb, saveUserToLive } from '../firebase';
+import { ref, get, child, update, set } from "firebase/database";
 
 interface Props {
   user: User;
@@ -12,24 +14,21 @@ export const RedeemSection: React.FC<Props> = ({ user, onSuccess }) => {
   const [status, setStatus] = useState<'IDLE' | 'LOADING' | 'SUCCESS' | 'ERROR'>('IDLE');
   const [msg, setMsg] = useState('');
 
-  const handleRedeem = () => {
+  const handleRedeem = async () => {
     if (!code.trim()) return;
     setStatus('LOADING');
     
-    // Simulate API delay
-    setTimeout(() => {
-        const storedCodesStr = localStorage.getItem('nst_admin_codes');
-        const allCodes: GiftCode[] = storedCodesStr ? JSON.parse(storedCodesStr) : [];
-        
-        const targetCodeIndex = allCodes.findIndex(c => c.code === code.trim());
-        
-        if (targetCodeIndex === -1) {
+    try {
+        const codeRef = ref(rtdb, 'redeem_codes/' + code.trim());
+        const snapshot = await get(codeRef);
+
+        if (!snapshot.exists()) {
             setStatus('ERROR');
             setMsg('Invalid Code. Please check and try again.');
             return;
         }
-        
-        const targetCode = allCodes[targetCodeIndex];
+
+        const targetCode = snapshot.val();
 
         if (targetCode.isRedeemed) {
             setStatus('ERROR');
@@ -38,12 +37,14 @@ export const RedeemSection: React.FC<Props> = ({ user, onSuccess }) => {
         }
 
         // Success Logic
-        // 1. Update Code in Admin Store
-        targetCode.isRedeemed = true;
-        targetCode.redeemedBy = user.id;
-        targetCode.redeemedDate = new Date().toISOString();
-        allCodes[targetCodeIndex] = targetCode;
-        localStorage.setItem('nst_admin_codes', JSON.stringify(allCodes));
+        // 1. Update Code in Cloud
+        const updatedCode = {
+            ...targetCode,
+            isRedeemed: true,
+            redeemedBy: user.id,
+            redeemedDate: new Date().toISOString()
+        };
+        await set(codeRef, updatedCode);
 
         // 2. Update User Credits
         const newCredits = (user.credits || 0) + targetCode.amount;
@@ -53,16 +54,10 @@ export const RedeemSection: React.FC<Props> = ({ user, onSuccess }) => {
             redeemedCodes: [...(user.redeemedCodes || []), targetCode.code] 
         };
         
-        // Save User immediately to global storage (handled by App.tsx usually, but safe to sync here)
-        const allUsersStr = localStorage.getItem('nst_users');
-        if (allUsersStr) {
-            const allUsers: User[] = JSON.parse(allUsersStr);
-            const userIdx = allUsers.findIndex(u => u.id === user.id);
-            if (userIdx !== -1) {
-                allUsers[userIdx] = updatedUser;
-                localStorage.setItem('nst_users', JSON.stringify(allUsers));
-            }
-        }
+        // Sync to Cloud
+        await saveUserToLive(updatedUser);
+
+        // Fallback Local Storage
         localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
 
         setStatus('SUCCESS');
@@ -75,7 +70,11 @@ export const RedeemSection: React.FC<Props> = ({ user, onSuccess }) => {
             setMsg('');
         }, 3000);
 
-    }, 800);
+    } catch (e) {
+        console.error("Redeem Error:", e);
+        setStatus('ERROR');
+        setMsg('Network Error. Try again.');
+    }
   };
 
   return (
