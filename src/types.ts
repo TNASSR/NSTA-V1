@@ -61,6 +61,12 @@ export interface User {
   
   // Progress Tracking
   progress: Record<string, SubjectProgress>; // Key is subjectID
+
+  // --- NEW SUBSCRIPTION FIELDS ---
+  subscriptionTier?: 'FREE' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'LIFETIME';
+  subscriptionEndDate?: string;
+  subscriptionPrice?: number;
+  grantedByAdmin?: boolean;
 }
 
 export interface CreditPackage {
@@ -92,10 +98,21 @@ export interface RecoveryRequest {
   status: 'PENDING' | 'RESOLVED';
 }
 
+export interface SubscriptionPlan {
+    id: string;
+    name: string;
+    duration: string;
+    price: number;
+    originalPrice: number;
+    features: string[];
+    popular?: boolean;
+}
+
 export interface SystemSettings {
   appName: string;
   themeColor?: string; // NEW: Dynamic Hex Color
   maintenanceMode: boolean;
+  maintenanceMessage?: string;
   customCSS: string; // For dynamic styling updates
   // NEW LOGIC CONTROLS
   apiKeys: string[];      // MULTIPLE API KEYS SUPPORT
@@ -122,9 +139,39 @@ export interface SystemSettings {
   qrCodeUrl: string;      // Optional QR Image URL
   paymentInstructions: string; // "Pay and send screenshot..."
   packages: CreditPackage[]; // List of packages
+
+  // --- NEW SETTINGS ---
+  subscriptionPlans: SubscriptionPlan[];
+  weeklyTests?: any[];
+  startupAd?: {
+      enabled: boolean;
+      duration: number;
+      title: string;
+      features: string[];
+      bgColor: string;
+      textColor: string;
+  };
+  adminCode?: string;
+  adminEmail?: string;
+  adminPhones?: {id: string; number: string; name: string; isDefault: boolean}[];
+  footerText?: string;
+  welcomeTitle?: string;
+  welcomeMessage?: string;
+  termsText?: string;
+  supportEmail?: string;
+  aiModel?: string;
+  aiInstruction?: string;
+  marqueeLines?: string[];
+  liveMessage1?: string;
+  liveMessage2?: string;
+  wheelRewards?: number[];
+  allowedBoards?: string[];
+  allowedStreams?: string[];
+  hiddenSubjects?: string[];
 }
 
 export interface GiftCode {
+  id?: string; // Added to support new code logic
   code: string;
   amount: number;
   createdAt: string;
@@ -208,4 +255,30 @@ export interface AppState {
   showWelcome: boolean; // Control welcome popup
   globalMessage: string | null; // Admin Broadcast
   settings: SystemSettings; // New Global Settings
+}
+
+// --- MISSING TYPES ---
+export interface RecycleBinItem {
+  id: string;
+  originalId: string;
+  type: 'USER' | 'CHAPTER' | 'LESSON' | string;
+  name: string;
+  data: any;
+  deletedAt: string;
+  expiresAt: string;
+  restoreKey?: string;
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  action: string;
+  details: string;
+  timestamp: string;
+}
+
+export interface LeaderboardEntry {
+    userId: string;
+    name: string;
+    score: number;
+    rank: number;
 }
