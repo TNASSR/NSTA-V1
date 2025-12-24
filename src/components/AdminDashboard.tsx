@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { User, GiftCode, ViewState, SystemSettings, Subject, ChatMessage, PaymentRequest, CreditPackage, Board, ClassLevel, Stream, InboxMessage, RecoveryRequest, Chapter, LessonContent, ContentType } from '../types';
-import { Users, Search, Trash2, Gift, Copy, Check, Ticket, Edit, Eye, EyeOff, BookOpen, Save, X, Phone, User as UserIcon, Zap, Crown, Shield, Cpu, Megaphone, Activity, KeyRound, Wifi, LayoutDashboard, MessageCircle, RefreshCcw, Settings, Terminal, ToggleLeft, ToggleRight, FileCode, Database, Plus, AlertTriangle, Coins, BarChart3, Lock, Ban, CreditCard, Recycle, RotateCcw, UserPlus, IndianRupee, QrCode, CheckCircle, XCircle, Send, Wallet, ShoppingBag, PenTool, HardDrive, Download, Upload, Mail, Gamepad2, Archive, BrainCircuit, Mic, FileText, ListChecks, Smartphone, FileEdit, PieChart, Palette, Code2, GraduationCap, Sparkles, FileQuestion, FileType, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { Users, Search, Trash2, Gift, Copy, Check, Ticket, Edit, Eye, EyeOff, BookOpen, Save, X, Phone, User as UserIcon, Zap, Crown, Shield, Cpu, Megaphone, Activity, KeyRound, Wifi, LayoutDashboard, MessageCircle, RefreshCcw, Settings, Terminal, ToggleLeft, ToggleRight, FileCode, Database, Plus, AlertTriangle, Coins, BarChart3, Lock, Ban, CreditCard, Recycle, RotateCcw, UserPlus, IndianRupee, QrCode, CheckCircle, XCircle, Send, Wallet, ShoppingBag, PenTool, HardDrive, Download, Upload, Mail, Gamepad2, Archive, BrainCircuit, Mic, FileText, ListChecks, Smartphone, FileEdit, PieChart, Palette, Code2, GraduationCap, Sparkles, FileQuestion, FileType, Link as LinkIcon, ExternalLink, ArrowLeft } from 'lucide-react';
 import { UniversalChat } from './UniversalChat';
 import { DEFAULT_SUBJECTS, getSubjectsList } from '../constants';
 import { fetchChapters, fetchLessonContent } from '../services/gemini';
@@ -503,6 +503,9 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-2 mb-6 flex flex-wrap gap-2 sticky top-2 z-20">
+          <button onClick={() => onNavigate('STUDENT_DASHBOARD' as any)} className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold bg-slate-900 text-white shadow-lg hover:bg-slate-800">
+              <ArrowLeft size={16} /> Back to App
+          </button>
           {[
               { id: 'OVERVIEW', icon: LayoutDashboard, label: 'Overview' },
               { id: 'USERS', icon: Users, label: 'Users', alert: pendingRecovery.length > 0 },
@@ -759,6 +762,32 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
                         {onImpersonate && (<button onClick={() => onImpersonate(editingUser)} className="flex flex-col items-center justify-center p-4 bg-purple-50 border border-purple-100 rounded-2xl hover:bg-purple-100 hover:scale-105 transition-all group"><Eye size={28} className="text-purple-600 mb-2 group-hover:scale-110 transition-transform" /><span className="font-bold text-purple-900 text-sm">View as User</span></button>)}
                         <button onClick={() => updateSingleUser({ ...editingUser, isLocked: !editingUser.isLocked })} className={`flex flex-col items-center justify-center p-4 border rounded-2xl transition-all group ${editingUser.isLocked ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>{editingUser.isLocked ? <><KeyRound size={28} className="text-green-600 mb-2" /><span className="font-bold text-green-900 text-sm">Unlock Account</span></> : <><Lock size={28} className="text-red-600 mb-2" /><span className="font-bold text-red-900 text-sm">Lock Account</span></>}</button>
                     </div>
+
+                    {/* ROLE MANAGEMENT */}
+                    <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                        <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Shield size={18} className="text-orange-600" /> Role Management</h4>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-slate-600">Current Role: {editingUser.role}</span>
+                            <button
+                                onClick={() => {
+                                    if (editingUser.role === 'ADMIN') {
+                                        updateSingleUser({ ...editingUser, role: 'STUDENT' });
+                                    } else {
+                                        const adminCount = users.filter(u => u.role === 'ADMIN').length;
+                                        if (adminCount >= 10) {
+                                            alert("Maximum Limit Reached: Cannot have more than 10 Admins.");
+                                            return;
+                                        }
+                                        updateSingleUser({ ...editingUser, role: 'ADMIN' });
+                                    }
+                                }}
+                                className={`px-4 py-2 rounded-xl font-bold text-xs ${editingUser.role === 'ADMIN' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+                            >
+                                {editingUser.role === 'ADMIN' ? 'Demote to Student' : 'Promote to Admin'}
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200"><h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2"><Wallet size={18} className="text-blue-600" /> Wallet Manager</h4><div className="flex gap-2 items-center mb-2"><span className="text-sm font-bold text-slate-500">Current Balance:</span><span className="text-xl font-black text-slate-800">{editingUser.credits} CR</span></div><div className="flex gap-2"><input type="number" placeholder="Amount" value={actionCreditAmount} onChange={e => setActionCreditAmount(Number(e.target.value))} className="w-full px-3 py-2 border rounded-xl text-sm" /><button onClick={() => handleModifyCredits(Number(actionCreditAmount))} className="bg-green-600 text-white px-4 rounded-xl font-bold text-sm hover:bg-green-700">Add</button><button onClick={() => handleModifyCredits(-Number(actionCreditAmount))} className="bg-red-500 text-white px-4 rounded-xl font-bold text-sm hover:bg-red-600">Deduct</button></div></div>
                     <div className="space-y-3">
                         <label className="flex items-center justify-between p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50"><span className="font-bold text-slate-700 flex items-center gap-2"><MessageCircle size={16} /> Ban Chat</span><div onClick={() => updateSingleUser({ ...editingUser, isChatBanned: !editingUser.isChatBanned })} className={`w-10 h-6 rounded-full relative transition-colors ${editingUser.isChatBanned ? 'bg-red-500' : 'bg-slate-300'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${editingUser.isChatBanned ? 'left-5' : 'left-1'}`}></div></div></label>
