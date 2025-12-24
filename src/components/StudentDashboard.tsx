@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Subject, StudentTab, Chapter, SubjectProgress, ClassLevel, Board, Stream, SystemSettings, PaymentRequest, InboxMessage } from '../types';
 import { getSubjectsList } from '../constants';
 import { RedeemSection } from './RedeemSection';
-import { Zap, Crown, Calendar, Clock, History, Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone } from 'lucide-react';
+import { Zap, Crown, Calendar, Clock, History, Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Shield } from 'lucide-react';
 import { SubjectSelection } from './SubjectSelection';
 import { HistoryPage } from './HistoryPage';
 import { fetchChapters } from '../services/gemini';
@@ -16,9 +16,10 @@ interface Props {
   onSubjectSelect: (subject: Subject) => void;
   onRedeemSuccess: (user: User) => void;
   settings?: SystemSettings; // New prop
+  onOpenAdminTools?: () => void; // New prop for admin
 }
 
-export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onSubjectSelect, onRedeemSuccess, settings }) => {
+export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onSubjectSelect, onRedeemSuccess, settings, onOpenAdminTools }) => {
   const [activeTab, setActiveTab] = useState<StudentTab>('ROUTINE');
   const globalMessage = localStorage.getItem('nst_global_message');
   
@@ -159,12 +160,22 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                     </h3>
                     <p className="text-xs text-slate-500">Tap a subject to start learning</p>
                 </div>
-                <button 
-                    onClick={() => setEditMode(true)}
-                    className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-slate-200 border border-slate-200"
-                >
-                    <Settings size={14} /> Class & Profile
-                </button>
+                <div className="flex gap-2">
+                    {user.role === 'ADMIN' && (
+                        <button
+                            onClick={onOpenAdminTools}
+                            className="text-xs font-bold text-white bg-slate-900 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-slate-800 shadow-md animate-pulse"
+                        >
+                            <Shield size={14} /> Admin Panel
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setEditMode(true)}
+                        className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-slate-200 border border-slate-200"
+                    >
+                        <Settings size={14} /> Class & Profile
+                    </button>
+                </div>
             </div>
 
             <div className="bg-slate-900 rounded-2xl p-5 text-white mb-8 shadow-xl relative overflow-hidden">

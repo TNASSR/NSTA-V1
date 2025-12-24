@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { LessonContent, Subject, ClassLevel, Chapter, MCQItem, ContentType } from '../types';
 import { fetchLessonContent } from '../services/gemini';
-import { ArrowLeft, Share2, Crown, Volume2, PauseCircle, Download, CheckCircle, XCircle, ChevronRight, PlayCircle, Image as ImageIcon, Copy, Check, BarChart3, RefreshCcw, Award, Star, Zap, FlaskConical, FileText, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Share2, Crown, Volume2, PauseCircle, Download, CheckCircle, XCircle, ChevronRight, PlayCircle, Image as ImageIcon, Copy, Check, BarChart3, RefreshCcw, Award, Star, Zap, FlaskConical, FileText, ExternalLink, Youtube, ListVideo, Play } from 'lucide-react';
 import katex from 'katex';
 
 interface Props {
@@ -36,12 +36,28 @@ export const LessonView: React.FC<Props> = ({
   const [showAnalysis, setShowAnalysis] = useState(false); // To show explanations inline
   const [showReport, setShowReport] = useState(false); // To show final scorecard
   
+  // Video Playlist State
+  const [currentVideo, setCurrentVideo] = useState<string>('');
+  const [videoList, setVideoList] = useState<string[]>([]);
+
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (content?.mcqData) {
         if (mcqList.length === 0) {
             setMcqList(content.mcqData);
+        }
+    }
+
+    // Video Logic
+    if (content?.type === 'VIDEO_LINK' as any) {
+        const anyContent = content as any;
+        if (Array.isArray(anyContent.videoLinks) && anyContent.videoLinks.length > 0) {
+            setVideoList(anyContent.videoLinks.filter((l: string) => l));
+            setCurrentVideo(anyContent.videoLinks[0]);
+        } else if (content.content) {
+            setVideoList([content.content]);
+            setCurrentVideo(content.content);
         }
     }
   }, [content]);
@@ -139,6 +155,23 @@ export const LessonView: React.FC<Props> = ({
   const handleCopy = () => { navigator.clipboard.writeText(content?.content || ''); setCopied(true); setTimeout(()=>setCopied(false),2000); };
   const handleDownload = () => window.open(content?.content, '_blank');
 
+  const getEmbedUrl = (url: string) => {
+      if (!url) return '';
+      // YouTube
+      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+          let id = '';
+          if (url.includes('v=')) id = url.split('v=')[1].split('&')[0];
+          else if (url.includes('youtu.be/')) id = url.split('youtu.be/')[1];
+
+          if(id) return `https://www.youtube.com/embed/${id}`;
+      }
+      // Google Drive
+      if (url.includes('drive.google.com/file/d/')) {
+          return url.replace('/view', '/preview');
+      }
+      return url;
+  };
+
   // PREMIUM RENDERING LOGIC (Colors, Icons, Math)
   const renderCustomText = (text: React.ReactNode) => {
       // Only process if text is a string
@@ -215,8 +248,9 @@ export const LessonView: React.FC<Props> = ({
 
   const isPremiumContent = content.type === 'NOTES_PREMIUM';
   const isMCQ = content.type === 'MCQ_ANALYSIS' || content.type === 'MCQ_SIMPLE';
-  const isPdf = content.type === 'PDF_NOTES';
+  const isPdf = content.type === 'PDF_NOTES' || content.type === 'NOTES_PREMIUM'; // Treat premium notes as PDF-like if URL provided
   const isSimpleMCQ = content.type === 'MCQ_SIMPLE';
+  const isVideo = content.type === 'VIDEO_LINK' as any;
 
   // Result Calculation
   const result = calculateResults();
@@ -283,7 +317,7 @@ export const LessonView: React.FC<Props> = ({
             </button>
             <div className="flex gap-2">
                 {(isPremiumContent || showAnalysis) && <button onClick={() => toggleAudio(isMCQ ? mcqList.map(m=>m.explanation).join('. ') : content.content)} className="p-2 text-slate-400 hover:text-blue-600"><Volume2 /></button>}
-                {!isMCQ && !isPdf && <button onClick={handleCopy} className="p-2 text-slate-400 hover:text-blue-600"><Copy /></button>}
+                {!isMCQ && !isPdf && !isVideo && <button onClick={handleCopy} className="p-2 text-slate-400 hover:text-blue-600"><Copy /></button>}
                 {(isPremiumContent || isPdf) && <button onClick={handleDownload} className="p-2 text-slate-400 hover:text-green-600"><ExternalLink size={20} /></button>}
             </div>
         </div>
@@ -291,21 +325,59 @@ export const LessonView: React.FC<Props> = ({
 
       <article className="max-w-4xl mx-auto px-4 h-full">
         <header className="mb-8 text-center">
-             {isPremiumContent && <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-orange-100 text-orange-600 text-xs font-bold uppercase mb-4"><Crown size={14} /> Premium Notes</div>}
+             {isPremiumContent && !isPdf && <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-orange-100 text-orange-600 text-xs font-bold uppercase mb-4"><Crown size={14} /> Premium Notes</div>}
              {isSimpleMCQ && <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-green-100 text-green-600 text-xs font-bold uppercase mb-4">Free Practice</div>}
              {isPdf && <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-red-100 text-red-600 text-xs font-bold uppercase mb-4"><FileText size={14} /> Official PDF</div>}
+             {isVideo && <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-red-100 text-red-600 text-xs font-bold uppercase mb-4"><Youtube size={14} /> Video Class</div>}
              <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-4">{content.title}</h1>
         </header>
 
-        {isPdf && (
+        {isVideo && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <div className="bg-black aspect-video rounded-2xl overflow-hidden shadow-xl border border-slate-200 relative">
+                        {currentVideo ? (
+                             <iframe
+                                src={getEmbedUrl(currentVideo)}
+                                className="w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            ></iframe>
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white">Select a video</div>
+                        )}
+                    </div>
+                </div>
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 h-fit max-h-[400px] overflow-y-auto">
+                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><ListVideo size={18}/> Playlist</h3>
+                    <div className="space-y-2">
+                        {videoList.length === 0 && <p className="text-sm text-slate-400">No videos available.</p>}
+                        {videoList.map((link, idx) => (
+                             <button
+                                key={idx}
+                                onClick={() => setCurrentVideo(link)}
+                                className={`w-full p-3 rounded-xl flex items-center gap-3 text-left transition-all ${currentVideo === link ? 'bg-red-600 text-white shadow-lg' : 'bg-white text-slate-700 hover:bg-slate-200'}`}
+                             >
+                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${currentVideo === link ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                     {idx + 1}
+                                 </div>
+                                 <div className="flex-1 overflow-hidden">
+                                     <div className="text-xs font-bold uppercase opacity-70">Part {idx + 1}</div>
+                                     <div className="truncate text-sm font-medium">Video Lesson</div>
+                                 </div>
+                                 {currentVideo === link && <Play size={16} fill="currentColor"/>}
+                             </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* PDF RENDERER (Also handles Premium Notes if they are URL based) */}
+        {isPdf && content.content.startsWith('http') && (
             <div className="min-h-[70vh] bg-slate-50 border-2 border-slate-200 rounded-2xl overflow-hidden relative">
-                {/* 
-                   Strategy: Use an IFrame. 
-                   If the URL is a direct file (ends in .pdf), we use Google Docs Viewer.
-                   If it's a Drive/Dropbox link (html wrapper), we use direct iframe.
-                */}
                 <iframe 
-                    src={content.content.includes('.pdf') 
+                    src={content.content.includes('.pdf') || content.content.includes('drive.google.com')
                         ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(content.content)}` 
                         : content.content} 
                     className="w-full h-[80vh] border-0"
@@ -412,7 +484,7 @@ export const LessonView: React.FC<Props> = ({
             </div>
         )}
 
-        {!isMCQ && !isPdf && (
+        {!isMCQ && !isPdf && !isVideo && (
             <div className={`markdown-body p-6 md:p-12 rounded-xl border ${isPremiumContent ? 'bg-[#fffdf5] border-yellow-200 shadow-md' : 'bg-white border-slate-100'}`}>
                  <ReactMarkdown components={{
                         p: ({node, ...props}) => <p className="mb-4 leading-relaxed text-slate-800">{safeRender(props.children)}</p>,

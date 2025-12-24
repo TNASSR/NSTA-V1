@@ -164,9 +164,9 @@ const App: React.FC = () => {
             return;
         }
 
-        let initialView = 'BOARDS';
-        if (user.role === 'ADMIN') initialView = 'ADMIN_DASHBOARD';
-        else initialView = 'STUDENT_DASHBOARD';
+        // REDESIGN: ADMIN NOW GOES TO STUDENT DASHBOARD
+        let initialView = 'STUDENT_DASHBOARD';
+        // if (user.role === 'ADMIN') initialView = 'ADMIN_DASHBOARD'; // OLD LOGIC REMOVED
         
         const lang = user.board === 'BSEB' ? 'Hindi' : 'English';
 
@@ -263,7 +263,8 @@ const App: React.FC = () => {
     localStorage.setItem('nst_current_user', JSON.stringify(user));
     localStorage.setItem('nst_has_seen_welcome', 'true');
     
-    const nextView = user.role === 'ADMIN' ? 'ADMIN_DASHBOARD' : 'STUDENT_DASHBOARD';
+    // REDESIGN: Admin -> STUDENT_DASHBOARD
+    const nextView = 'STUDENT_DASHBOARD';
     const lang = user.board === 'BSEB' ? 'Hindi' : 'English';
 
     setState(prev => ({
@@ -319,7 +320,7 @@ const App: React.FC = () => {
           ...prev,
           user: prev.originalAdmin,
           originalAdmin: null,
-          view: 'ADMIN_DASHBOARD',
+          view: 'STUDENT_DASHBOARD', // REDESIGN: Stay in Student View but with Admin Powers
           selectedBoard: null,
           selectedClass: null
       }));
@@ -475,12 +476,11 @@ const App: React.FC = () => {
 
   const goBack = () => {
     setState(prev => {
-      if (prev.view === 'RULES') return { ...prev, view: prev.user?.role === 'ADMIN' ? 'ADMIN_DASHBOARD' as any : 'STUDENT_DASHBOARD' as any };
-      if (prev.view === 'IIC') return { ...prev, view: prev.user?.role === 'ADMIN' ? 'ADMIN_DASHBOARD' as any : 'STUDENT_DASHBOARD' as any };
-      if (prev.view === 'AUDIO_STUDIO') return { ...prev, view: prev.user?.role === 'STUDENT' ? 'STUDENT_DASHBOARD' as any : 'BOARDS' };
+      if (prev.view === 'RULES') return { ...prev, view: 'STUDENT_DASHBOARD' as any };
+      if (prev.view === 'IIC') return { ...prev, view: 'STUDENT_DASHBOARD' as any };
+      if (prev.view === 'AUDIO_STUDIO') return { ...prev, view: 'STUDENT_DASHBOARD' as any };
       if (prev.view === 'LESSON') return { ...prev, view: 'CHAPTERS', lessonContent: null };
       if (prev.view === 'CHAPTERS') {
-          if (prev.user?.role === 'STUDENT') return { ...prev, view: 'STUDENT_DASHBOARD' as any, selectedChapter: null };
           return { ...prev, view: 'SUBJECTS', selectedChapter: null };
       }
       if (prev.view === 'SUBJECTS') {
@@ -489,7 +489,7 @@ const App: React.FC = () => {
       }
       if (prev.view === 'STREAMS') return { ...prev, view: 'CLASSES', selectedStream: null };
       if (prev.view === 'CLASSES') return { ...prev, view: 'BOARDS', selectedClass: null };
-      if (prev.view === 'BOARDS') return { ...prev, view: 'ADMIN_DASHBOARD' as any, selectedBoard: null };
+      if (prev.view === 'BOARDS') return { ...prev, view: 'STUDENT_DASHBOARD' as any, selectedBoard: null }; // Changed to prevent loop
       return prev;
     });
   };
@@ -527,7 +527,7 @@ const App: React.FC = () => {
 
       <header className="bg-white sticky top-0 z-30 shadow-sm border-b border-slate-100">
         <div className="max-w-6xl mx-auto px-4 h-16 md:h-20 flex items-center justify-between">
-           <div onClick={() => setState(prev => ({ ...prev, view: state.user?.role === 'ADMIN' ? 'ADMIN_DASHBOARD' : 'STUDENT_DASHBOARD' as any }))} className="flex items-center gap-3 cursor-pointer group">
+           <div onClick={() => setState(prev => ({ ...prev, view: 'STUDENT_DASHBOARD' as any }))} className="flex items-center gap-3 cursor-pointer group">
                <div className="bg-[var(--primary)] rounded-xl p-2 text-white shadow-md"><BrainCircuit size={24} /></div>
                <div>
                    <h1 className="text-xl md:text-2xl font-black tracking-tight leading-none text-slate-800">
@@ -558,14 +558,14 @@ const App: React.FC = () => {
                 {state.view === 'IIC' && <IICPage user={state.user} onBack={goBack} />}
                 {state.view === 'RULES' && <RulesPage onBack={goBack} />}
 
-                {/* PASS SETTINGS AND UPDATE HANDLER TO ADMIN DASHBOARD */}
+                {/* REDESIGN: ADMIN DASHBOARD HIDDEN / REMOVED from Direct Access */}
                 {state.view === 'ADMIN_DASHBOARD' && (
-                    <AdminDashboard 
-                        onNavigate={(v) => setState(prev => ({...prev, view: v}))} 
-                        settings={state.settings}
-                        onUpdateSettings={updateSettings}
-                        onImpersonate={handleImpersonate}
-                    />
+                     <AdminDashboard
+                         onNavigate={(v) => setState(prev => ({...prev, view: v}))}
+                         settings={state.settings}
+                         onUpdateSettings={updateSettings}
+                         onImpersonate={handleImpersonate}
+                     />
                 )}
                 
                 {state.view === 'STUDENT_DASHBOARD' as any && (
@@ -575,6 +575,7 @@ const App: React.FC = () => {
                         onSubjectSelect={handleSubjectSelect} 
                         onRedeemSuccess={u => setState(prev => ({...prev, user: u}))}
                         settings={state.settings} 
+                        onOpenAdminTools={() => setState(prev => ({...prev, view: 'ADMIN_DASHBOARD'}))}
                     />
                 )}
                 
@@ -594,6 +595,8 @@ const App: React.FC = () => {
                         chapters={state.chapters} 
                         subject={state.selectedSubject} 
                         classLevel={state.selectedClass!} 
+                        stream={state.selectedStream}
+                        board={state.selectedBoard || undefined}
                         loading={state.loading && state.view === 'CHAPTERS'} 
                         user={state.user}
                         onSelect={onChapterClick} 
