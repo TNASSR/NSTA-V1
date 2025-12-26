@@ -15,7 +15,6 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { StudentDashboard } from './components/StudentDashboard';
 import { AudioStudio } from './components/AudioStudio';
 import { WelcomePopup } from './components/WelcomePopup';
-import { PremiumModal } from './components/PremiumModal';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { RulesPage } from './components/RulesPage';
 import { IICPage } from './components/IICPage';
@@ -108,12 +107,13 @@ const App: React.FC = () => {
             { id: 'p1', name: 'Starter Pack', credits: 50, price: 29, isPopular: false },
             { id: 'p2', name: 'Value Pack', credits: 200, price: 99, isPopular: true },
             { id: 'p3', name: 'Pro Pack', credits: 500, price: 199, isPopular: false }
-        ]
+        ],
+        externalLinks: []
     }
   });
 
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [tempSelectedChapter, setTempSelectedChapter] = useState<Chapter | null>(null);
+  const [showContentModal, setShowContentModal] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   
   // New State for Precision Loading
@@ -367,40 +367,15 @@ const App: React.FC = () => {
         }
       }
       setTempSelectedChapter(chapter);
-      setShowPremiumModal(true);
+      setShowContentModal(true);
   };
 
-  const handleContentGeneration = async (type: ContentType) => {
-    setShowPremiumModal(false);
-    if (!tempSelectedChapter || !state.user) return;
+  const handleContentGeneration = async (type: ContentType, chapter: Chapter | null = tempSelectedChapter) => {
+    if (!chapter || !state.user) return;
     
-    if (state.user.role !== 'ADMIN' && !state.originalAdmin) {
-         // COST LOGIC UPDATE
-         // NOTES_SIMPLE = FREE
-         // MCQ_SIMPLE = FREE
-         // NOTES_PREMIUM / PDF = 5 Credits
-         // MCQ_ANALYSIS (Premium MCQ) = 2 Credits
-         
-         let cost = 0;
-         if (type === 'NOTES_PREMIUM' || type === 'PDF_NOTES') cost = 5; 
-         if (type === 'MCQ_ANALYSIS') cost = 2; 
+    // No cost logic needed as Premium is removed.
 
-         if (cost > 0 && state.user.credits < cost) {
-             alert(`Insufficient Credits! You need ${cost} credits.`);
-             return;
-         }
-         
-         if (cost > 0) {
-            const updatedUser = { ...state.user, credits: state.user.credits - cost };
-            localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
-            const allUsers = JSON.parse(localStorage.getItem('nst_users') || '[]');
-            const idx = allUsers.findIndex((u:User) => u.id === updatedUser.id);
-            if (idx !== -1) { allUsers[idx] = updatedUser; localStorage.setItem('nst_users', JSON.stringify(allUsers)); }
-            setState(prev => ({...prev, user: updatedUser}));
-         }
-    }
-
-    setState(prev => ({ ...prev, selectedChapter: tempSelectedChapter, loading: true }));
+    setState(prev => ({ ...prev, selectedChapter: chapter, loading: true }));
     setGenerationDataReady(false); 
 
     try {
@@ -412,7 +387,7 @@ const App: React.FC = () => {
           state.selectedClass!,
           state.selectedStream!,
           state.selectedSubject!,
-          tempSelectedChapter,
+          chapter,
           state.language,
           type,
           userProgress.totalMCQsSolved,
@@ -427,7 +402,7 @@ const App: React.FC = () => {
           loading: false, 
           lessonContent: {
               id: 'err-content', 
-              title: tempSelectedChapter.title, 
+              title: chapter.title,
               subtitle: 'Offline Mode', 
               content: '# Content Unavailable\nCheck connection.', 
               type: type, 
@@ -623,9 +598,42 @@ const App: React.FC = () => {
       </footer>
 
       {state.loading && <LoadingOverlay dataReady={generationDataReady} onComplete={handleLoadingAnimationComplete} />}
-      {showPremiumModal && tempSelectedChapter && state.user && (
-          <PremiumModal chapter={tempSelectedChapter} credits={state.user.credits || 0} isAdmin={state.user.role === 'ADMIN'} onSelect={handleContentGeneration} onClose={() => setShowPremiumModal(false)} />
+
+      {/* SIMPLE CONTENT SELECTION MODAL */}
+      {showContentModal && tempSelectedChapter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden relative">
+                <div className="bg-slate-50 p-6 border-b border-slate-200 flex justify-between items-center">
+                    <h3 className="text-lg font-black text-slate-800">{tempSelectedChapter.title}</h3>
+                    <button onClick={() => setShowContentModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <p className="text-sm text-slate-500 font-medium mb-2">Select Content Type:</p>
+                    <button
+                        onClick={() => { setShowContentModal(false); handleContentGeneration('NOTES_SIMPLE', tempSelectedChapter); }}
+                        className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all group text-left"
+                    >
+                        <div className="bg-blue-100 text-blue-600 p-3 rounded-full group-hover:scale-110 transition-transform"><BookOpen size={24} /></div>
+                        <div>
+                            <div className="font-bold text-slate-800">Start Reading</div>
+                            <div className="text-xs text-slate-500">Chapter Notes</div>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => { setShowContentModal(false); handleContentGeneration('MCQ_SIMPLE', tempSelectedChapter); }}
+                        className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-slate-100 hover:border-green-500 hover:bg-green-50 transition-all group text-left"
+                    >
+                        <div className="bg-green-100 text-green-600 p-3 rounded-full group-hover:scale-110 transition-transform"><FileText size={24} /></div>
+                        <div>
+                            <div className="font-bold text-slate-800">Practice MCQs</div>
+                            <div className="text-xs text-slate-500">Test your knowledge</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
       )}
+
       {state.showWelcome && <WelcomePopup onStart={handleStartApp} isResume={!!state.user} />}
     </div>
   );

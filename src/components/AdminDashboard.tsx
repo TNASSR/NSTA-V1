@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { User, GiftCode, ViewState, SystemSettings, Subject, ChatMessage, PaymentRequest, CreditPackage, Board, ClassLevel, Stream, InboxMessage, RecoveryRequest, Chapter, LessonContent, ContentType } from '../types';
-import { Users, Search, Trash2, Gift, Copy, Check, Ticket, Edit, Eye, EyeOff, BookOpen, Save, X, Phone, User as UserIcon, Zap, Crown, Shield, Cpu, Megaphone, Activity, KeyRound, Wifi, LayoutDashboard, MessageCircle, RefreshCcw, Settings, Terminal, ToggleLeft, ToggleRight, FileCode, Database, Plus, AlertTriangle, Coins, BarChart3, Lock, Ban, CreditCard, Recycle, RotateCcw, UserPlus, IndianRupee, QrCode, CheckCircle, XCircle, Send, Wallet, ShoppingBag, PenTool, HardDrive, Download, Upload, Mail, Gamepad2, Archive, BrainCircuit, Mic, FileText, ListChecks, Smartphone, FileEdit, PieChart, Palette, Code2, GraduationCap, Sparkles, FileQuestion, FileType, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { User, GiftCode, ViewState, SystemSettings, Subject, ChatMessage, PaymentRequest, CreditPackage, Board, ClassLevel, Stream, InboxMessage, RecoveryRequest, Chapter, LessonContent, ContentType, ExternalLink } from '../types';
+import { Users, Search, Trash2, Gift, Copy, Check, Ticket, Edit, Eye, EyeOff, BookOpen, Save, X, Phone, User as UserIcon, Zap, Crown, Shield, Cpu, Megaphone, Activity, KeyRound, Wifi, LayoutDashboard, MessageCircle, RefreshCcw, Settings, Terminal, ToggleLeft, ToggleRight, FileCode, Database, Plus, AlertTriangle, Coins, BarChart3, Lock, Ban, CreditCard, Recycle, RotateCcw, UserPlus, IndianRupee, QrCode, CheckCircle, XCircle, Send, Wallet, ShoppingBag, PenTool, HardDrive, Download, Upload, Mail, Gamepad2, Archive, BrainCircuit, Mic, FileText, ListChecks, Smartphone, FileEdit, PieChart, Palette, Code2, GraduationCap, Sparkles, FileQuestion, FileType, Link as LinkIcon, ExternalLink as ExternalLinkIcon, Link } from 'lucide-react';
 import { UniversalChat } from './UniversalChat';
 import { DEFAULT_SUBJECTS, getSubjectsList } from '../constants';
 import { fetchChapters, fetchLessonContent } from '../services/gemini';
@@ -17,7 +17,7 @@ interface Props {
   onImpersonate?: (user: User) => void; 
 }
 
-type AdminTab = 'OVERVIEW' | 'USERS' | 'PAYMENTS' | 'STORE' | 'CONTENT' | 'SYSTEM' | 'DATABASE' | 'RECYCLE';
+type AdminTab = 'OVERVIEW' | 'USERS' | 'LINKS' | 'CONTENT' | 'SYSTEM' | 'DATABASE' | 'RECYCLE';
 
 export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdateSettings, onImpersonate }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('OVERVIEW');
@@ -74,6 +74,10 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   const [showChat, setShowChat] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [broadcastSent, setBroadcastSent] = useState(false);
+
+  // External Links Management
+  const [linkName, setLinkName] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   
   // Store Management
   const [editingPkgId, setEditingPkgId] = useState<string | null>(null); 
@@ -225,6 +229,30 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   
   const handleRemovePackage = (id: string) => { 
       if(window.confirm("Remove this package?")) { const updatedPackages = localSettings.packages.filter(p => p.id !== id); setLocalSettings({...localSettings, packages: updatedPackages}); } 
+  };
+
+  // External Links Actions
+  const handleAddLink = () => {
+      if (!linkName.trim() || !linkUrl.trim()) return;
+      const currentLinks = localSettings.externalLinks || [];
+      if (currentLinks.length >= 10) {
+          alert("Maximum 10 links allowed.");
+          return;
+      }
+      const newLink: ExternalLink = {
+          id: Date.now().toString(),
+          name: linkName,
+          url: linkUrl,
+          isVisible: true
+      };
+      setLocalSettings({ ...localSettings, externalLinks: [...currentLinks, newLink] });
+      setLinkName('');
+      setLinkUrl('');
+  };
+
+  const handleDeleteLink = (id: string) => {
+      const updatedLinks = (localSettings.externalLinks || []).filter(l => l.id !== id);
+      setLocalSettings({ ...localSettings, externalLinks: updatedLinks });
   };
 
   const handleProcessPayment = (reqId: string, action: 'APPROVE' | 'REJECT') => { 
@@ -506,8 +534,7 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
           {[
               { id: 'OVERVIEW', icon: LayoutDashboard, label: 'Overview' },
               { id: 'USERS', icon: Users, label: 'Users', alert: pendingRecovery.length > 0 },
-              { id: 'PAYMENTS', icon: IndianRupee, label: 'Payments', alert: pendingPayments.length > 0 },
-              { id: 'STORE', icon: ShoppingBag, label: 'Store' },
+              { id: 'LINKS', icon: Link, label: 'Links' },
               { id: 'CONTENT', icon: BrainCircuit, label: 'Content' },
               { id: 'SYSTEM', icon: Settings, label: 'System' },
               { id: 'DATABASE', icon: HardDrive, label: 'Database' },
@@ -593,32 +620,54 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
           </div>
       )}
 
-      {activeTab === 'PAYMENTS' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-800">Requests</h3><span className="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold">Pending: {pendingPayments.length}</span></div>
-              <div className="divide-y divide-slate-100">
-                  {pendingPayments.map(req => (
-                      <div key={req.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50">
-                          <div><div className="font-bold text-slate-800">{req.userName} <span className="text-slate-400 font-normal text-sm">({req.userId})</span></div><div className="text-sm text-slate-600 mt-1">Pkg: {req.packageName} | ₹{req.amount}</div><div className="text-xs text-blue-600 font-mono mt-1 bg-blue-50 inline-block px-2 py-0.5 rounded border border-blue-100">TXN: {req.txnId}</div></div>
-                          <div className="flex gap-3"><button onClick={() => handleProcessPayment(req.id, 'REJECT')} className="px-4 py-2 bg-red-50 text-red-600 font-bold rounded-lg border border-red-200">Reject</button><button onClick={() => handleProcessPayment(req.id, 'APPROVE')} className="px-4 py-2 bg-green-600 text-white font-bold rounded-lg shadow-lg">Approve</button></div>
+      {activeTab === 'LINKS' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 animate-in fade-in">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2 mb-6">
+                  <Link size={20} className="text-[var(--primary)]" /> External Vercel Links
+              </h3>
+
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                          type="text"
+                          placeholder="Link Name (e.g. My Next.js App)"
+                          value={linkName}
+                          onChange={e => setLinkName(e.target.value)}
+                          className="p-3 border rounded-xl"
+                      />
+                      <input
+                          type="url"
+                          placeholder="URL (e.g. https://my-app.vercel.app)"
+                          value={linkUrl}
+                          onChange={e => setLinkUrl(e.target.value)}
+                          className="p-3 border rounded-xl"
+                      />
+                  </div>
+                  <button
+                      onClick={handleAddLink}
+                      disabled={(localSettings.externalLinks?.length || 0) >= 10}
+                      className="mt-4 bg-slate-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50"
+                  >
+                      Add Link
+                  </button>
+                  <p className="text-xs text-slate-500 mt-2">Max 10 links allowed.</p>
+              </div>
+
+              <div className="space-y-3">
+                  {localSettings.externalLinks?.map(link => (
+                      <div key={link.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
+                          <div>
+                              <h4 className="font-bold text-slate-800">{link.name}</h4>
+                              <p className="text-xs text-blue-600 font-mono">{link.url}</p>
+                          </div>
+                          <button onClick={() => handleDeleteLink(link.id)} className="text-red-500 hover:text-red-700 p-2">
+                              <Trash2 size={18} />
+                          </button>
                       </div>
                   ))}
-              </div>
-          </div>
-      )}
-
-      {activeTab === 'STORE' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 animate-in fade-in">
-              <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><ShoppingBag className="text-purple-600" /> Packages</h3><button onClick={() => setLocalSettings({...localSettings, isPaymentEnabled: !localSettings.isPaymentEnabled})} className={`px-3 py-1 rounded-full text-xs font-bold ${localSettings.isPaymentEnabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{localSettings.isPaymentEnabled ? 'ACTIVE' : 'CLOSED'}</button></div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  {localSettings.packages.map(pkg => (
-                      <div key={pkg.id} className="border-2 border-slate-100 rounded-xl p-4 relative group hover:border-blue-200"><button onClick={() => handleRemovePackage(pkg.id)} className="absolute top-2 right-2 text-slate-300 hover:text-red-500"><X size={16} /></button><button onClick={() => handleEditPackage(pkg)} className="absolute top-2 right-8 text-slate-300 hover:text-blue-500"><Edit size={16} /></button><div className="font-bold text-slate-800 text-lg">{pkg.name}</div><div className="text-2xl font-black text-blue-600 my-2">₹{pkg.price}</div><div className="text-sm text-slate-500 font-medium">{pkg.credits} Credits</div></div>
-                  ))}
-                  <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 flex flex-col gap-2 bg-slate-50">
-                      <input type="text" placeholder="Name" value={pkgName} onChange={e => setPkgName(e.target.value)} className="p-2 border rounded-lg text-sm" />
-                      <div className="flex gap-2"><input type="number" placeholder="Credits" value={pkgCredits} onChange={e => setPkgCredits(Number(e.target.value))} className="p-2 border rounded-lg text-sm w-1/2" /><input type="number" placeholder="Price" value={pkgPrice} onChange={e => setPkgPrice(Number(e.target.value))} className="p-2 border rounded-lg text-sm w-1/2" /></div>
-                      <div className="flex gap-2 mt-2"><button onClick={handleSavePackage} className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg text-xs">{editingPkgId ? 'Update' : 'Add'}</button></div>
-                  </div>
+                  {(!localSettings.externalLinks || localSettings.externalLinks.length === 0) && (
+                      <p className="text-center text-slate-400 py-8">No external links added yet.</p>
+                  )}
               </div>
           </div>
       )}
@@ -676,9 +725,7 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
                   <div className="bg-slate-50 p-6 border-b border-slate-200"><h3 className="text-lg font-black text-slate-800">Generate Content</h3><button onClick={() => setShowGenOptions(false)} className="absolute top-4 right-4 p-2 bg-white rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600"><X size={18} /></button></div>
                   <div className="p-6 grid grid-cols-2 gap-4">
                       <button onClick={() => handleGenerateContent('NOTES_SIMPLE')} className="flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-blue-300 hover:bg-blue-50 transition-all group text-center"><div className="bg-blue-100 text-blue-600 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform"><BookOpen size={24} /></div><span className="font-bold text-slate-700 text-sm">Normal Notes</span></button>
-                      <button onClick={() => handleGenerateContent('NOTES_PREMIUM')} className="flex flex-col items-center p-4 rounded-xl border-2 border-yellow-100 bg-yellow-50/30 hover:border-yellow-400 hover:bg-yellow-50 transition-all group text-center relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-400 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">BEST</div><div className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white p-3 rounded-full mb-3 shadow-lg group-hover:scale-110 transition-transform"><Crown size={24} /></div><span className="font-bold text-slate-800 text-sm">Premium Notes</span></button>
                       <button onClick={() => handleGenerateContent('MCQ_SIMPLE')} className="flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-green-300 hover:bg-green-50 transition-all group text-center"><div className="bg-green-100 text-green-600 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileQuestion size={24} /></div><span className="font-bold text-slate-700 text-sm">Normal MCQ</span></button>
-                      <button onClick={() => handleGenerateContent('MCQ_ANALYSIS')} className="flex flex-col items-center p-4 rounded-xl border-2 border-purple-100 bg-purple-50/30 hover:border-purple-400 hover:bg-purple-50 transition-all group text-center"><div className="bg-purple-100 text-purple-600 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform"><BrainCircuit size={24} /></div><span className="font-bold text-slate-800 text-sm">Premium MCQ</span></button>
                   </div>
               </div>
           </div>
