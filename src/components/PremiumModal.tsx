@@ -62,55 +62,6 @@ export const PremiumModal: React.FC<Props> = ({ chapter, credits, isAdmin, onSel
                         </div>
                     </button>
 
-                    {/* Premium Option - Notes (COST 5) */}
-                    <button 
-                        onClick={() => {
-                            if (canAffordPremiumNotes) onSelect('NOTES_PREMIUM');
-                        }}
-                        className={`w-full flex items-center p-3 rounded-xl border-2 transition-all text-left relative overflow-hidden ${
-                            canAffordPremiumNotes 
-                            ? 'border-blue-100 bg-blue-50/50 hover:border-blue-300 hover:bg-blue-50 cursor-pointer' 
-                            : 'border-slate-100 bg-slate-50 opacity-80 cursor-not-allowed'
-                        }`}
-                    >
-                        <div className="absolute top-0 right-0 bg-gradient-to-l from-yellow-400 to-orange-400 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">
-                            BEST
-                        </div>
-
-                        <div className={`p-3 rounded-lg mr-4 ${canAffordPremiumNotes ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}`}>
-                            {canAffordPremiumNotes ? <Crown size={20} /> : <Lock size={20} />}
-                        </div>
-                        <div>
-                            <div className="font-bold text-slate-800 text-sm">Ultra Premium Note / PDF</div>
-                            <div className="text-[10px] text-slate-500 mb-1">Detailed, Images, Audio</div>
-                            <div className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-blue-600">
-                                {isAdmin ? 'Free for Admin' : '5 Credits'}
-                            </div>
-                        </div>
-                    </button>
-
-                    {/* Premium Option - MCQ (COST 2) */}
-                    <button 
-                        onClick={() => {
-                            if (canAffordPremiumMCQ) onSelect('MCQ_ANALYSIS');
-                        }}
-                        className={`w-full flex items-center p-3 rounded-xl border-2 transition-all text-left relative overflow-hidden ${
-                            canAffordPremiumMCQ 
-                            ? 'border-purple-100 bg-purple-50/50 hover:border-purple-300 hover:bg-purple-50 cursor-pointer' 
-                            : 'border-slate-100 bg-slate-50 opacity-80 cursor-not-allowed'
-                        }`}
-                    >
-                        <div className={`p-3 rounded-lg mr-4 ${canAffordPremiumMCQ ? 'bg-purple-100 text-purple-600' : 'bg-slate-200 text-slate-400'}`}>
-                             <HelpCircle size={20} />
-                        </div>
-                        <div>
-                            <div className="font-bold text-slate-800 text-sm">Premium Test</div>
-                            <div className="text-[10px] text-slate-500 mb-1">20 Questions + Deep Analysis</div>
-                            <div className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-purple-600">
-                                {isAdmin ? 'Free for Admin' : '2 Credits'}
-                            </div>
-                        </div>
-                    </button>
                 </div>
             </div>
             
