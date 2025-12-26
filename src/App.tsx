@@ -15,7 +15,6 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { StudentDashboard } from './components/StudentDashboard';
 import { AudioStudio } from './components/AudioStudio';
 import { WelcomePopup } from './components/WelcomePopup';
-import { PremiumModal } from './components/PremiumModal';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { RulesPage } from './components/RulesPage';
 import { IICPage } from './components/IICPage';
@@ -98,21 +97,17 @@ const App: React.FC = () => {
         loginMessage: '',
         allowedClasses: ['6','7','8','9','10','11','12'], // Default ALL OPEN
         storageCapacity: '100 GB', // DEFAULT STORAGE
-        isPaymentEnabled: true, 
+        isPaymentEnabled: false,
         paymentDisabledMessage: 'Store is currently closed. Please check back later.',
         upiId: '8227070298@paytm',
         upiName: 'NST Admin',
         qrCodeUrl: '',
-        paymentInstructions: 'Scan QR or Pay to UPI ID. Then enter the Transaction ID below for verification.',
-        packages: [
-            { id: 'p1', name: 'Starter Pack', credits: 50, price: 29, isPopular: false },
-            { id: 'p2', name: 'Value Pack', credits: 200, price: 99, isPopular: true },
-            { id: 'p3', name: 'Pro Pack', credits: 500, price: 199, isPopular: false }
-        ]
+        paymentInstructions: '',
+        packages: [],
+        vercelLinks: []
     }
   });
 
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [tempSelectedChapter, setTempSelectedChapter] = useState<Chapter | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   
@@ -367,40 +362,16 @@ const App: React.FC = () => {
         }
       }
       setTempSelectedChapter(chapter);
-      setShowPremiumModal(true);
+      // Directly Trigger Generation (Assuming Free/Simple types for now as Premium is removed)
+      handleContentGeneration(chapter, 'NOTES_SIMPLE');
   };
 
-  const handleContentGeneration = async (type: ContentType) => {
-    setShowPremiumModal(false);
-    if (!tempSelectedChapter || !state.user) return;
-    
-    if (state.user.role !== 'ADMIN' && !state.originalAdmin) {
-         // COST LOGIC UPDATE
-         // NOTES_SIMPLE = FREE
-         // MCQ_SIMPLE = FREE
-         // NOTES_PREMIUM / PDF = 5 Credits
-         // MCQ_ANALYSIS (Premium MCQ) = 2 Credits
-         
-         let cost = 0;
-         if (type === 'NOTES_PREMIUM' || type === 'PDF_NOTES') cost = 5; 
-         if (type === 'MCQ_ANALYSIS') cost = 2; 
+  const handleContentGeneration = async (chapter: Chapter, type: ContentType) => {
+    if (!chapter || !state.user) return;
 
-         if (cost > 0 && state.user.credits < cost) {
-             alert(`Insufficient Credits! You need ${cost} credits.`);
-             return;
-         }
-         
-         if (cost > 0) {
-            const updatedUser = { ...state.user, credits: state.user.credits - cost };
-            localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
-            const allUsers = JSON.parse(localStorage.getItem('nst_users') || '[]');
-            const idx = allUsers.findIndex((u:User) => u.id === updatedUser.id);
-            if (idx !== -1) { allUsers[idx] = updatedUser; localStorage.setItem('nst_users', JSON.stringify(allUsers)); }
-            setState(prev => ({...prev, user: updatedUser}));
-         }
-    }
+    // Premium checks removed as per request to remove demands/payments
 
-    setState(prev => ({ ...prev, selectedChapter: tempSelectedChapter, loading: true }));
+    setState(prev => ({ ...prev, selectedChapter: chapter, loading: true }));
     setGenerationDataReady(false); 
 
     try {
@@ -412,7 +383,7 @@ const App: React.FC = () => {
           state.selectedClass!,
           state.selectedStream!,
           state.selectedSubject!,
-          tempSelectedChapter,
+          chapter,
           state.language,
           type,
           userProgress.totalMCQsSolved,
@@ -427,7 +398,7 @@ const App: React.FC = () => {
           loading: false, 
           lessonContent: {
               id: 'err-content', 
-              title: tempSelectedChapter.title, 
+              title: chapter.title,
               subtitle: 'Offline Mode', 
               content: '# Content Unavailable\nCheck connection.', 
               type: type, 
@@ -623,9 +594,6 @@ const App: React.FC = () => {
       </footer>
 
       {state.loading && <LoadingOverlay dataReady={generationDataReady} onComplete={handleLoadingAnimationComplete} />}
-      {showPremiumModal && tempSelectedChapter && state.user && (
-          <PremiumModal chapter={tempSelectedChapter} credits={state.user.credits || 0} isAdmin={state.user.role === 'ADMIN'} onSelect={handleContentGeneration} onClose={() => setShowPremiumModal(false)} />
-      )}
       {state.showWelcome && <WelcomePopup onStart={handleStartApp} isResume={!!state.user} />}
     </div>
   );
