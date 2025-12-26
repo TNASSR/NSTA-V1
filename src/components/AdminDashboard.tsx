@@ -17,7 +17,7 @@ interface Props {
   onImpersonate?: (user: User) => void; 
 }
 
-type AdminTab = 'OVERVIEW' | 'USERS' | 'PAYMENTS' | 'STORE' | 'CONTENT' | 'SYSTEM' | 'DATABASE' | 'RECYCLE';
+type AdminTab = 'OVERVIEW' | 'USERS' | 'CONTENT' | 'SYSTEM' | 'DATABASE' | 'RECYCLE';
 
 export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdateSettings, onImpersonate }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('OVERVIEW');
@@ -26,7 +26,6 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   const [users, setUsers] = useState<User[]>([]);
   const [codes, setCodes] = useState<GiftCode[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [recoveryRequests, setRecoveryRequests] = useState<RecoveryRequest[]>([]);
   const [search, setSearch] = useState('');
   
@@ -51,17 +50,13 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
       allowedClasses: ['6', '7', '8', '9', '10', '11', '12'],
       storageCapacity: '100 GB',
       noteGenerationPrompt: '',
-      isPaymentEnabled: true,
+      isPaymentEnabled: false,
       paymentDisabledMessage: 'Store is currently closed.',
       upiId: '',
       upiName: '',
       qrCodeUrl: '',
       paymentInstructions: 'Pay via UPI and enter Transaction ID below.',
-      packages: [
-          { id: 'p1', name: 'Starter Pack', credits: 50, price: 29, isPopular: false },
-          { id: 'p2', name: 'Pro Pack', credits: 200, price: 99, isPopular: true },
-          { id: 'p3', name: 'Ultra Pack', credits: 500, price: 199, isPopular: false }
-      ]
+      packages: []
   });
   
   const [newApiKey, setNewApiKey] = useState('');
@@ -75,13 +70,6 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [broadcastSent, setBroadcastSent] = useState(false);
   
-  // Store Management
-  const [editingPkgId, setEditingPkgId] = useState<string | null>(null); 
-  const [pkgName, setPkgName] = useState('');
-  const [pkgCredits, setPkgCredits] = useState<number | ''>('');
-  const [pkgPrice, setPkgPrice] = useState<number | ''>('');
-  const [pkgPopular, setPkgPopular] = useState(false);
-
   // Content Studio
   const [contentBoard, setContentBoard] = useState<Board>('CBSE');
   const [contentClass, setContentClass] = useState<ClassLevel>('10');
@@ -122,9 +110,6 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
 
     const storedChat = localStorage.getItem('nst_universal_chat');
     if (storedChat) setChatMessages(JSON.parse(storedChat));
-
-    const storedPayments = localStorage.getItem('nst_payment_requests');
-    if (storedPayments) setPaymentRequests(JSON.parse(storedPayments));
 
     const storedRecRequests = localStorage.getItem('nst_recovery_requests');
     if (storedRecRequests) setRecoveryRequests(JSON.parse(storedRecRequests));
@@ -215,31 +200,6 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
       setLocalSettings({ ...localSettings, apiKeys: updatedKeys });
   };
 
-  const handleSavePackage = () => { 
-      if (!pkgName || !pkgCredits || !pkgPrice) return; 
-      const newPkg: CreditPackage = { id: editingPkgId || Date.now().toString(), name: pkgName, credits: Number(pkgCredits), price: Number(pkgPrice), isPopular: pkgPopular }; 
-      let updatedPackages; 
-      if (editingPkgId) { updatedPackages = localSettings.packages.map(p => p.id === editingPkgId ? newPkg : p); alert("Package Updated!"); } else { updatedPackages = [...localSettings.packages, newPkg]; alert("New Package Added!"); } 
-      setLocalSettings({...localSettings, packages: updatedPackages}); setEditingPkgId(null); setPkgName(''); setPkgCredits(''); setPkgPrice(''); setPkgPopular(false); 
-  };
-  
-  const handleRemovePackage = (id: string) => { 
-      if(window.confirm("Remove this package?")) { const updatedPackages = localSettings.packages.filter(p => p.id !== id); setLocalSettings({...localSettings, packages: updatedPackages}); } 
-  };
-
-  const handleProcessPayment = (reqId: string, action: 'APPROVE' | 'REJECT') => { 
-      const request = paymentRequests.find(r => r.id === reqId); if (!request) return; 
-      if (action === 'APPROVE') { 
-          const userIndex = users.findIndex(u => u.id === request.userId); 
-          if (userIndex !== -1) { 
-              const updatedUsers = [...users]; updatedUsers[userIndex] = { ...updatedUsers[userIndex], credits: (updatedUsers[userIndex].credits || 0) + request.amount }; 
-              setUsers(updatedUsers); localStorage.setItem('nst_users', JSON.stringify(updatedUsers)); 
-          } 
-      } 
-      const updatedRequests = paymentRequests.map(r => r.id === reqId ? { ...r, status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED' as 'APPROVED' | 'REJECTED' } : r ); 
-      setPaymentRequests(updatedRequests); localStorage.setItem('nst_payment_requests', JSON.stringify(updatedRequests)); alert(`Request ${action}D`); 
-  };
-
   const handleGenerateCodes = () => {
       if (!giftAmount || !giftQuantity) return;
       const newCodes: GiftCode[] = [];
@@ -262,7 +222,7 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
   };
 
   const handleExportData = () => { 
-      const data = { users: localStorage.getItem('nst_users'), chat: localStorage.getItem('nst_universal_chat'), codes: localStorage.getItem('nst_admin_codes'), history: localStorage.getItem('nst_user_history'), settings: localStorage.getItem('nst_system_settings'), posts: localStorage.getItem('nst_iic_posts'), payments: localStorage.getItem('nst_payment_requests'), customLessons: {} as any };
+      const data = { users: localStorage.getItem('nst_users'), chat: localStorage.getItem('nst_universal_chat'), codes: localStorage.getItem('nst_admin_codes'), history: localStorage.getItem('nst_user_history'), settings: localStorage.getItem('nst_system_settings'), posts: localStorage.getItem('nst_iic_posts'), customLessons: {} as any };
       for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
           if (key && key.startsWith('nst_custom_lesson_')) { data.customLessons[key] = localStorage.getItem(key); }
@@ -279,7 +239,6 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
           if (data.history) localStorage.setItem('nst_user_history', data.history); 
           if (data.settings) localStorage.setItem('nst_system_settings', data.settings); 
           if (data.posts) localStorage.setItem('nst_iic_posts', data.posts); 
-          if (data.payments) localStorage.setItem('nst_payment_requests', data.payments);
           if (data.customLessons) { Object.keys(data.customLessons).forEach(k => { localStorage.setItem(k, data.customLessons[k]); }); }
           alert("Restoration Complete!"); window.location.reload(); } } catch (err) { alert("Invalid Backup File!"); } }; reader.readAsText(file); 
   };
@@ -403,17 +362,12 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
       calculateStorage();
   };
 
-  const handleEditPackage = (pkg: CreditPackage) => {
-    setEditingPkgId(pkg.id); setPkgName(pkg.name); setPkgCredits(pkg.credits); setPkgPrice(pkg.price); setPkgPopular(!!pkg.isPopular);
-  };
-
   const handlePermanentDeleteUser = (userId: string) => {
     if(window.confirm("Permanently delete this user?")) handleDeleteUser(userId, true);
   };
 
   const filteredUsers = users.filter(u => !u.isArchived && (u.name.toLowerCase().includes(search.toLowerCase()) || u.id.toLowerCase().includes(search.toLowerCase())));
   const deletedUsers = users.filter(u => u.isArchived && u.deletedAt);
-  const pendingPayments = paymentRequests.filter(p => p.status === 'PENDING');
   const pendingRecovery = recoveryRequests.filter(r => r.status === 'PENDING');
 
   if (showChat) {
@@ -506,8 +460,6 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
           {[
               { id: 'OVERVIEW', icon: LayoutDashboard, label: 'Overview' },
               { id: 'USERS', icon: Users, label: 'Users', alert: pendingRecovery.length > 0 },
-              { id: 'PAYMENTS', icon: IndianRupee, label: 'Payments', alert: pendingPayments.length > 0 },
-              { id: 'STORE', icon: ShoppingBag, label: 'Store' },
               { id: 'CONTENT', icon: BrainCircuit, label: 'Content' },
               { id: 'SYSTEM', icon: Settings, label: 'System' },
               { id: 'DATABASE', icon: HardDrive, label: 'Database' },
@@ -532,7 +484,7 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
               </div>
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                    <div className="flex justify-between mb-4"><Zap className="text-orange-500" /><span className="bg-orange-50 text-orange-600 px-2 py-1 rounded text-xs font-bold">Pending</span></div>
-                   <div className="text-4xl font-black text-slate-800">{pendingPayments.length + pendingRecovery.length}</div>
+                   <div className="text-4xl font-black text-slate-800">{pendingRecovery.length}</div>
               </div>
               <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-lg">
                   <div className="flex justify-between mb-4"><Coins className="text-yellow-400" /><span className="bg-slate-800 px-2 py-1 rounded text-xs font-bold">Credits</span></div>
@@ -593,36 +545,6 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
           </div>
       )}
 
-      {activeTab === 'PAYMENTS' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-800">Requests</h3><span className="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold">Pending: {pendingPayments.length}</span></div>
-              <div className="divide-y divide-slate-100">
-                  {pendingPayments.map(req => (
-                      <div key={req.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50">
-                          <div><div className="font-bold text-slate-800">{req.userName} <span className="text-slate-400 font-normal text-sm">({req.userId})</span></div><div className="text-sm text-slate-600 mt-1">Pkg: {req.packageName} | ₹{req.amount}</div><div className="text-xs text-blue-600 font-mono mt-1 bg-blue-50 inline-block px-2 py-0.5 rounded border border-blue-100">TXN: {req.txnId}</div></div>
-                          <div className="flex gap-3"><button onClick={() => handleProcessPayment(req.id, 'REJECT')} className="px-4 py-2 bg-red-50 text-red-600 font-bold rounded-lg border border-red-200">Reject</button><button onClick={() => handleProcessPayment(req.id, 'APPROVE')} className="px-4 py-2 bg-green-600 text-white font-bold rounded-lg shadow-lg">Approve</button></div>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      )}
-
-      {activeTab === 'STORE' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 animate-in fade-in">
-              <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><ShoppingBag className="text-purple-600" /> Packages</h3><button onClick={() => setLocalSettings({...localSettings, isPaymentEnabled: !localSettings.isPaymentEnabled})} className={`px-3 py-1 rounded-full text-xs font-bold ${localSettings.isPaymentEnabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{localSettings.isPaymentEnabled ? 'ACTIVE' : 'CLOSED'}</button></div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  {localSettings.packages.map(pkg => (
-                      <div key={pkg.id} className="border-2 border-slate-100 rounded-xl p-4 relative group hover:border-blue-200"><button onClick={() => handleRemovePackage(pkg.id)} className="absolute top-2 right-2 text-slate-300 hover:text-red-500"><X size={16} /></button><button onClick={() => handleEditPackage(pkg)} className="absolute top-2 right-8 text-slate-300 hover:text-blue-500"><Edit size={16} /></button><div className="font-bold text-slate-800 text-lg">{pkg.name}</div><div className="text-2xl font-black text-blue-600 my-2">₹{pkg.price}</div><div className="text-sm text-slate-500 font-medium">{pkg.credits} Credits</div></div>
-                  ))}
-                  <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 flex flex-col gap-2 bg-slate-50">
-                      <input type="text" placeholder="Name" value={pkgName} onChange={e => setPkgName(e.target.value)} className="p-2 border rounded-lg text-sm" />
-                      <div className="flex gap-2"><input type="number" placeholder="Credits" value={pkgCredits} onChange={e => setPkgCredits(Number(e.target.value))} className="p-2 border rounded-lg text-sm w-1/2" /><input type="number" placeholder="Price" value={pkgPrice} onChange={e => setPkgPrice(Number(e.target.value))} className="p-2 border rounded-lg text-sm w-1/2" /></div>
-                      <div className="flex gap-2 mt-2"><button onClick={handleSavePackage} className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg text-xs">{editingPkgId ? 'Update' : 'Add'}</button></div>
-                  </div>
-              </div>
-          </div>
-      )}
-
       {activeTab === 'CONTENT' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-in fade-in">
               <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
@@ -676,9 +598,7 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
                   <div className="bg-slate-50 p-6 border-b border-slate-200"><h3 className="text-lg font-black text-slate-800">Generate Content</h3><button onClick={() => setShowGenOptions(false)} className="absolute top-4 right-4 p-2 bg-white rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600"><X size={18} /></button></div>
                   <div className="p-6 grid grid-cols-2 gap-4">
                       <button onClick={() => handleGenerateContent('NOTES_SIMPLE')} className="flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-blue-300 hover:bg-blue-50 transition-all group text-center"><div className="bg-blue-100 text-blue-600 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform"><BookOpen size={24} /></div><span className="font-bold text-slate-700 text-sm">Normal Notes</span></button>
-                      <button onClick={() => handleGenerateContent('NOTES_PREMIUM')} className="flex flex-col items-center p-4 rounded-xl border-2 border-yellow-100 bg-yellow-50/30 hover:border-yellow-400 hover:bg-yellow-50 transition-all group text-center relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-400 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">BEST</div><div className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white p-3 rounded-full mb-3 shadow-lg group-hover:scale-110 transition-transform"><Crown size={24} /></div><span className="font-bold text-slate-800 text-sm">Premium Notes</span></button>
                       <button onClick={() => handleGenerateContent('MCQ_SIMPLE')} className="flex flex-col items-center p-4 rounded-xl border-2 border-slate-100 hover:border-green-300 hover:bg-green-50 transition-all group text-center"><div className="bg-green-100 text-green-600 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileQuestion size={24} /></div><span className="font-bold text-slate-700 text-sm">Normal MCQ</span></button>
-                      <button onClick={() => handleGenerateContent('MCQ_ANALYSIS')} className="flex flex-col items-center p-4 rounded-xl border-2 border-purple-100 bg-purple-50/30 hover:border-purple-400 hover:bg-purple-50 transition-all group text-center"><div className="bg-purple-100 text-purple-600 p-3 rounded-full mb-3 group-hover:scale-110 transition-transform"><BrainCircuit size={24} /></div><span className="font-bold text-slate-800 text-sm">Premium MCQ</span></button>
                   </div>
               </div>
           </div>
@@ -736,7 +656,7 @@ export const AdminDashboard: React.FC<Props> = ({ onNavigate, settings, onUpdate
       {activeTab === 'DATABASE' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200"><h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><HardDrive size={20} className="text-blue-600" /> Data Management</h3><div className="space-y-4"><button onClick={handleExportData} className="w-full py-3 bg-blue-50 border border-blue-200 text-blue-700 font-bold rounded-xl hover:bg-blue-100 flex items-center justify-center gap-2"><Download size={18} /> Backup Database</button><label className="w-full py-3 bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-100 flex items-center justify-center gap-2 cursor-pointer"><Upload size={18} /> Restore Database<input type="file" onChange={handleImportData} className="hidden" accept=".json" /></label></div></div>
-               <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100"><h3 className="font-bold text-lg text-red-700 mb-6 flex items-center gap-2"><AlertTriangle size={20} /> Danger Zone</h3><div className="space-y-4"><button onClick={() => clearData('nst_universal_chat', 'Chat History')} className="w-full py-3 border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50">Clear Chat</button><button onClick={() => clearData('nst_payment_requests', 'Payments')} className="w-full py-3 border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50">Clear Logs</button></div></div>
+               <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100"><h3 className="font-bold text-lg text-red-700 mb-6 flex items-center gap-2"><AlertTriangle size={20} /> Danger Zone</h3><div className="space-y-4"><button onClick={() => clearData('nst_universal_chat', 'Chat History')} className="w-full py-3 border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-50">Clear Chat</button></div></div>
           </div>
       )}
 

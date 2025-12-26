@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { IICPost, User } from '../types';
-import { Image as ImageIcon, Video, Type, Send, Trash2, Calendar, User as UserIcon, Upload, Link } from 'lucide-react';
+import { Image as ImageIcon, Type, Send, Trash2, Calendar, User as UserIcon, Upload, Link } from 'lucide-react';
 
 interface Props {
   user: User;
@@ -12,7 +12,7 @@ export const IICPage: React.FC<Props> = ({ user, onBack }) => {
   const isAdmin = user.role === 'ADMIN';
 
   // Admin Post Form State
-  const [postType, setPostType] = useState<'TEXT' | 'IMAGE' | 'VIDEO'>('TEXT');
+  const [postType, setPostType] = useState<'TEXT' | 'IMAGE'>('TEXT');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState(''); // Text or URL
   const [imageBase64, setImageBase64] = useState<string | null>(null);
@@ -47,16 +47,13 @@ export const IICPage: React.FC<Props> = ({ user, onBack }) => {
           if (!imageBase64) { alert("Please upload an image"); return; }
           finalContent = imageBase64;
       }
-      if (postType === 'VIDEO' && !content) {
-          alert("Please enter a video URL (YouTube embed or MP4)"); return; 
-      }
       if (postType === 'TEXT' && !content) {
           alert("Please enter some text"); return;
       }
 
       const newPost: IICPost = {
           id: Date.now().toString(),
-          type: postType,
+          type: postType as 'TEXT' | 'IMAGE' | 'VIDEO',
           title: title,
           content: finalContent,
           timestamp: new Date().toISOString(),
@@ -112,9 +109,6 @@ export const IICPage: React.FC<Props> = ({ user, onBack }) => {
                   <button onClick={() => setPostType('IMAGE')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${postType === 'IMAGE' ? 'bg-white shadow text-blue-600' : 'text-slate-400'}`}>
                       <ImageIcon size={16} /> Photo
                   </button>
-                  <button onClick={() => setPostType('VIDEO')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${postType === 'VIDEO' ? 'bg-white shadow text-blue-600' : 'text-slate-400'}`}>
-                      <Video size={16} /> Video
-                  </button>
               </div>
 
               <div className="space-y-4">
@@ -155,22 +149,6 @@ export const IICPage: React.FC<Props> = ({ user, onBack }) => {
                                   <p className="text-xs">Max size: 500KB</p>
                               </div>
                           )}
-                      </div>
-                  )}
-
-                  {postType === 'VIDEO' && (
-                      <div>
-                          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2">
-                             <Link size={16} className="text-slate-400" />
-                             <input 
-                                type="url" 
-                                placeholder="Paste Video URL (YouTube, Vimeo, etc.)"
-                                value={content}
-                                onChange={e => setContent(e.target.value)}
-                                className="w-full bg-transparent outline-none text-sm"
-                             />
-                          </div>
-                          <p className="text-[10px] text-slate-400 mt-1 ml-1">Note: Paste a valid Embed URL or MP4 link.</p>
                       </div>
                   )}
 
