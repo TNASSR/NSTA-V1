@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Subject, StudentTab, Chapter, SubjectProgress, ClassLevel, Board, Stream, SystemSettings, PaymentRequest, InboxMessage } from '../types';
 import { getSubjectsList } from '../constants';
-import { RedeemSection } from './RedeemSection';
-import { Zap, Crown, Calendar, Clock, History, Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone } from 'lucide-react';
+import { Zap, Crown, Calendar, Clock, History, Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Link as LinkIcon, ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { SubjectSelection } from './SubjectSelection';
 import { HistoryPage } from './HistoryPage';
 import { fetchChapters } from '../services/gemini';
@@ -34,17 +33,12 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
   const DAILY_TARGET = 3 * 3600; // 3 Hours in Seconds
   const REWARD_AMOUNT = settings?.dailyReward || 3;
 
-  // Payment State
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
-  const [txnId, setTxnId] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState<'IDLE'|'SUBMITTED'>('IDLE');
-
   // Inbox
   const [showInbox, setShowInbox] = useState(false);
   const unreadCount = user.inbox?.filter(m => !m.read).length || 0;
 
-  // CONSTANTS FOR PAYMENT
-  const ADMIN_PHONE = "8227070298";
+  // External Link Viewer
+  const [viewLink, setViewLink] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if reward already claimed today
@@ -70,37 +64,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       setCanClaimReward(false);
       onRedeemSuccess(updatedUser);
       alert(`🎉 Congratulations! You studied for 3 Hours.\n\nReceived: ${REWARD_AMOUNT} Free Credits!`);
-  };
-
-  const handleWhatsAppPayment = () => {
-      if (!selectedPackage || !settings) return;
-      const pkg = settings.packages?.find(p => p.id === selectedPackage);
-      if (!pkg) return;
-      const message = `Hello Admin, I want to buy credits.\n\n📦 Package: ${pkg.name}\n💰 Amount: ₹${pkg.price}\n💎 Credits: ${pkg.credits}\n🆔 Student ID: ${user.id}\n\nPlease approve my request after payment.`;
-      const url = `https://wa.me/91${ADMIN_PHONE}?text=${encodeURIComponent(message)}`;
-      window.open(url, '_blank');
-  };
-
-  const handleSubmitPayment = () => {
-      if (!selectedPackage || !txnId || !settings) return;
-      const pkg = settings.packages?.find(p => p.id === selectedPackage);
-      if (!pkg) return;
-      const newRequest: PaymentRequest = {
-          id: Date.now().toString(),
-          userId: user.id,
-          userName: user.name,
-          packageId: pkg.id,
-          packageName: pkg.name,
-          amount: pkg.credits,
-          txnId: txnId,
-          status: 'PENDING',
-          timestamp: new Date().toISOString()
-      };
-      const storedRequests = JSON.parse(localStorage.getItem('nst_payment_requests') || '[]');
-      localStorage.setItem('nst_payment_requests', JSON.stringify([newRequest, ...storedRequests]));
-      setPaymentStatus('SUBMITTED');
-      setTxnId('');
-      alert("Payment Request Submitted! Admin will review and add credits.");
   };
 
   const formatTime = (secs: number) => {
@@ -229,6 +192,28 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
   return (
     <div>
+        {/* External Link Viewer Modal */}
+        {viewLink && (
+            <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-in slide-in-from-bottom duration-300">
+                <div className="flex items-center justify-between p-4 bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <ExternalLinkIcon size={18} className="text-[var(--primary)]" /> External Resource
+                    </h3>
+                    <button onClick={() => setViewLink(null)} className="p-2 hover:bg-slate-100 rounded-full">
+                        <X size={24} className="text-slate-500" />
+                    </button>
+                </div>
+                <div className="flex-1 bg-slate-50 relative">
+                    <iframe
+                        src={viewLink}
+                        className="w-full h-full border-0"
+                        title="External Content"
+                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    />
+                </div>
+            </div>
+        )}
+
         {/* Profile Edit Modal */}
         {editMode && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
@@ -330,13 +315,31 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
             </div>
         </div>
 
-        <div className={`grid ${isGameEnabled ? 'grid-cols-6' : 'grid-cols-5'} gap-1 bg-white p-2 rounded-xl border border-slate-200 shadow-sm mb-8 sticky top-20 z-20`}>
+        {settings?.externalLinks && settings.externalLinks.length > 0 && (
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6">
+                <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <ExternalLinkIcon size={16} className="text-[var(--primary)]" /> External Resources
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {settings.externalLinks.map(link => (
+                        <button
+                            key={link.id}
+                            onClick={() => setViewLink(link.url)}
+                            className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 hover:border-blue-300 transition-all flex items-center gap-2 truncate"
+                        >
+                            <LinkIcon size={14} className="text-blue-500 shrink-0" />
+                            <span className="truncate">{link.name}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        <div className={`grid ${isGameEnabled ? 'grid-cols-4' : 'grid-cols-3'} gap-1 bg-white p-2 rounded-xl border border-slate-200 shadow-sm mb-8 sticky top-20 z-20`}>
             <button onClick={() => setActiveTab('ROUTINE')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'ROUTINE' ? 'bg-slate-100 text-[var(--primary)]' : 'text-slate-400 hover:bg-slate-50'}`}><Calendar size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Routine</span></button>
             <button onClick={() => setActiveTab('CHAT')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'CHAT' ? 'bg-slate-100 text-[var(--primary)]' : 'text-slate-400 hover:bg-slate-50'}`}><MessageCircle size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Chat</span></button>
             {isGameEnabled && <button onClick={() => setActiveTab('GAME')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'GAME' ? 'bg-orange-50 text-orange-600' : 'text-slate-400 hover:bg-slate-50'}`}><Gamepad2 size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Game</span></button>}
             <button onClick={() => setActiveTab('HISTORY')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'HISTORY' ? 'bg-slate-100 text-[var(--primary)]' : 'text-slate-400 hover:bg-slate-50'}`}><History size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">History</span></button>
-            <button onClick={() => setActiveTab('REDEEM')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'REDEEM' ? 'bg-slate-100 text-[var(--primary)]' : 'text-slate-400 hover:bg-slate-50'}`}><Gift size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Redeem</span></button>
-            <button onClick={() => setActiveTab('PREMIUM')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'PREMIUM' ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}><Sparkles size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Premium</span></button>
         </div>
 
         <div className="min-h-[400px]">
@@ -344,8 +347,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
             {activeTab === 'CHAT' && <UniversalChat currentUser={user} onUserUpdate={handleUserUpdate} settings={settings} />}
             {activeTab === 'GAME' && isGameEnabled && (user.isGameBanned ? <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-100"><Ban size={48} className="mx-auto text-red-500 mb-4" /><h3 className="text-lg font-bold text-red-700">Access Denied</h3><p className="text-sm text-red-600">Admin has disabled the game for your account.</p></div> : <SpinWheel user={user} onUpdateUser={handleUserUpdate} />)}
             {activeTab === 'HISTORY' && <HistoryPage />}
-            {activeTab === 'REDEEM' && <div className="animate-in fade-in slide-in-from-bottom-2 duration-300"><RedeemSection user={user} onSuccess={onRedeemSuccess} /></div>}
-            {activeTab === 'PREMIUM' && <div className="animate-in zoom-in duration-300 pb-10"><div className="bg-slate-900 rounded-2xl p-6 text-center text-white mb-8"><h2 className="text-2xl font-bold mb-2">Buy Credits</h2><p className="text-slate-400 text-sm">Select a package, Pay via UPI, and submit request.</p></div>{settings?.isPaymentEnabled === false ? <div className="bg-gradient-to-br from-slate-100 to-slate-200 p-10 rounded-3xl border-2 border-slate-300 text-center shadow-inner"><div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl"><Lock size={40} className="text-slate-400" /></div><h3 className="text-2xl font-black text-slate-700 mb-2">Store Locked</h3><p className="text-slate-500 font-medium max-w-xs mx-auto leading-relaxed">{settings.paymentDisabledMessage || "Purchases are currently disabled by the Admin. Please check back later."}</p></div> : <><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">{settings?.packages?.map(pkg => <div key={pkg.id} onClick={() => setSelectedPackage(pkg.id)} className={`bg-white p-6 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group ${selectedPackage === pkg.id ? 'border-[var(--primary)] shadow-xl scale-105' : 'border-slate-200 hover:border-blue-400'}`}>{pkg.isPopular && <div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-1 rounded-bl-lg">POPULAR</div>}<h3 className="text-xl font-bold text-slate-800">{pkg.name}</h3><div className="text-3xl font-black text-[var(--primary)] my-2">₹{pkg.price}</div><div className="font-bold text-slate-600">{pkg.credits} Credits</div></div>)}</div>{selectedPackage && <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-lg animate-in slide-in-from-bottom-4"><h3 className="font-bold text-lg mb-4 flex items-center gap-2"><CreditCard size={20} className="text-green-600" /> Complete Payment</h3><div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200 text-sm space-y-2"><p className="font-bold text-slate-700">Send Payment To:</p><p>UPI ID: <span className="font-mono bg-white px-2 py-1 rounded border">{settings?.upiId || `${ADMIN_PHONE}@paytm`}</span></p><p>Name: <span className="font-mono">{settings?.upiName || 'NST Admin'}</span></p></div><div className="space-y-3"><div className="mb-4"><button onClick={handleWhatsAppPayment} className="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 shadow-md flex items-center justify-center gap-2"><MessageCircle size={20} /> Order via WhatsApp</button></div><label className="text-xs font-bold text-slate-500 uppercase">Enter Transaction ID / UTR (After Payment)</label><input type="text" placeholder="e.g. 3456789012" value={txnId} onChange={e => setTxnId(e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono" />{paymentStatus === 'SUBMITTED' ? <div className="bg-green-100 text-green-700 p-4 rounded-xl text-center font-bold flex items-center justify-center gap-2"><CheckCircle size={20} /> Request Sent! Wait for Admin.</div> : <button onClick={handleSubmitPayment} disabled={!txnId} className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2"><Send size={18} /> Submit Payment Request</button>}</div></div>}</>}</div>}
         </div>
     </div>
   );

@@ -71,6 +71,13 @@ export interface CreditPackage {
   isPopular?: boolean;
 }
 
+export interface ExternalLink {
+  id: string;
+  name: string;
+  url: string;
+  isVisible: boolean;
+}
+
 export interface PaymentRequest {
   id: string;
   userId: string;
@@ -122,6 +129,7 @@ export interface SystemSettings {
   qrCodeUrl: string;      // Optional QR Image URL
   paymentInstructions: string; // "Pay and send screenshot..."
   packages: CreditPackage[]; // List of packages
+  externalLinks?: ExternalLink[]; // NEW: Admin managed external links
 }
 
 export interface GiftCode {
