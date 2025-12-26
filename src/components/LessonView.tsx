@@ -139,40 +139,16 @@ export const LessonView: React.FC<Props> = ({
   const handleCopy = () => { navigator.clipboard.writeText(content?.content || ''); setCopied(true); setTimeout(()=>setCopied(false),2000); };
   const handleDownload = () => window.open(content?.content, '_blank');
 
-  // PREMIUM RENDERING LOGIC (Colors, Icons, Math)
+  // Basic Text Renderer (Premium Logic Removed)
   const renderCustomText = (text: React.ReactNode) => {
       // Only process if text is a string
       if (typeof text !== 'string') return text;
 
-      // Split by Custom Color Tags [[color|Text]] AND Math Tags $$Formula$$
-      const parts = text.split(/(\[\[.*?\]\]|\$\$[^\$]+\$\$)/g);
+      // Only Handle Math/Science Formulas $$...$$ using KaTeX
+      // Custom colors and images logic removed as requested.
+      const parts = text.split(/(\$\$[^\$]+\$\$)/g);
       
       return parts.map((part, index) => {
-          // Handle Custom Colors/Images [[...]]
-          if (part.startsWith('[[') && part.endsWith(']]')) {
-              const inner = part.slice(2, -2);
-              
-              if (inner.startsWith('IMAGE:')) {
-                  const desc = inner.replace('IMAGE:', '').trim();
-                  return (
-                      <div key={index} className="my-6 p-4 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl text-center group hover:border-blue-400 transition-colors print:border-solid print:bg-white">
-                          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2 print:hidden"><ImageIcon size={24} /></div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">AI Diagram</p>
-                          <p className="font-medium text-slate-700 italic">"{desc}"</p>
-                      </div>
-                  );
-              }
-              
-              // Handle Colors
-              const [color, ...contentParts] = inner.split('|');
-              const contentText = contentParts.join('|');
-              
-              if (color === 'red') return <span key={index} className="text-red-700 font-bold bg-red-50 px-1 rounded border border-red-100 mx-0.5">{contentText}</span>;
-              if (color === 'blue') return <span key={index} className="text-blue-700 font-bold">{contentText}</span>;
-              if (color === 'green') return <span key={index} className="text-emerald-700 font-bold bg-emerald-50 px-1 rounded border border-emerald-100 mx-0.5">{contentText}</span>;
-              
-              return <span key={index} className="font-bold">{contentText}</span>;
-          }
           
           // Handle Math/Science Formulas $$...$$ using KaTeX
           if (part.startsWith('$$') && part.endsWith('$$')) {
@@ -199,13 +175,12 @@ export const LessonView: React.FC<Props> = ({
       });
   };
 
-  // Safe Child Renderer: Prevents [object Object] by handling React Nodes gracefully
+  // Safe Child Renderer
   const safeRender = (children: React.ReactNode) => {
       return React.Children.map(children, child => {
           if (typeof child === 'string') {
               return renderCustomText(child);
           }
-          // If it's an object (like a <strong> or <em> or <img> from markdown), return as is
           return child; 
       });
   };

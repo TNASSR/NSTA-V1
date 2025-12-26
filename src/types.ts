@@ -122,6 +122,7 @@ export interface SystemSettings {
   qrCodeUrl: string;      // Optional QR Image URL
   paymentInstructions: string; // "Pay and send screenshot..."
   packages: CreditPackage[]; // List of packages
+  vercelLinks?: { id: string; name: string; url: string; }[]; // NEW: External Vercel Links
 }
 
 export interface GiftCode {
