@@ -107,6 +107,7 @@ export interface SystemSettings {
   dailyReward: number;    // Default 3
   signupBonus: number;    // Default 2
   isChatEnabled: boolean; // Global Toggle
+  chat_mode?: 'PRIVATE_ONLY' | 'UNIVERSAL_ONLY' | 'BOTH'; // NEW
   isGameEnabled?: boolean; // NEW: Global Game Toggle
   allowSignup: boolean;   // New: Stop new registrations
   loginMessage: string;   // New: Custom message on Login Screen

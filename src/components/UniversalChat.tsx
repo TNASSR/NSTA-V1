@@ -16,8 +16,23 @@ export const UniversalChat: React.FC<Props> = ({ currentUser, onUserUpdate, isAd
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // NEW: Chat Tabs and Toggle
+  const [activeTab, setActiveTab] = useState<'UNIVERSAL' | 'PRIVATE'>('UNIVERSAL');
+  const [sendToAdmin, setSendToAdmin] = useState(false); // Toggle for Student Input
+
   const CHAT_COST = settings?.chatCost ?? 1;
   const IS_ENABLED = settings?.isChatEnabled ?? true;
+  const CHAT_MODE = settings?.chat_mode ?? 'BOTH';
+
+  // Determine Tabs Visibility
+  const showUniversal = CHAT_MODE !== 'PRIVATE_ONLY';
+  const showPrivate = CHAT_MODE !== 'UNIVERSAL_ONLY';
+
+  // Force correct tab if mode changes
+  useEffect(() => {
+      if (CHAT_MODE === 'PRIVATE_ONLY' && activeTab === 'UNIVERSAL') setActiveTab('PRIVATE');
+      if (CHAT_MODE === 'UNIVERSAL_ONLY' && activeTab === 'PRIVATE') setActiveTab('UNIVERSAL');
+  }, [CHAT_MODE]);
 
   // Poll for messages
   useEffect(() => {
@@ -128,71 +143,108 @@ export const UniversalChat: React.FC<Props> = ({ currentUser, onUserUpdate, isAd
   return (
     <div className={`flex flex-col h-[80vh] bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 ${isAdminView ? '' : 'max-w-4xl mx-auto'}`}>
         {/* Header */}
-        <div className="bg-slate-900 p-4 flex items-center justify-between text-white">
-            <div className="flex items-center gap-3">
-                <div className="bg-blue-600 p-2 rounded-lg"><MessageCircle size={20} /></div>
-                <div>
-                    <h3 className="font-bold text-lg">Universal Chat</h3>
-                    <p className="text-xs text-slate-400">Community & Support</p>
+        <div className="bg-slate-900 p-4 text-white">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                    <div className="bg-blue-600 p-2 rounded-lg"><MessageCircle size={20} /></div>
+                    <div>
+                        <h3 className="font-bold text-lg">Chat Room</h3>
+                        <p className="text-xs text-slate-400">Community & Support</p>
+                    </div>
                 </div>
+                {!isAdminView && (
+                    <div className="flex items-center gap-3 text-xs">
+                        {currentUser.isPremium ? (
+                            <span className="flex items-center gap-1 bg-yellow-500 text-black px-2 py-1 rounded-full font-bold">
+                                <Crown size={12} /> Premium
+                            </span>
+                        ) : (
+                            <div className="flex flex-col items-end">
+                                <span className="flex items-center gap-1 text-slate-300">
+                                    <Coins size={12} className="text-yellow-400" /> {CHAT_COST} Cr/msg
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
-            {!isAdminView && (
-                <div className="flex items-center gap-3 text-xs">
-                     {currentUser.isPremium ? (
-                         <span className="flex items-center gap-1 bg-yellow-500 text-black px-2 py-1 rounded-full font-bold">
-                             <Crown size={12} /> Premium
-                         </span>
-                     ) : (
-                         <div className="flex flex-col items-end">
-                             <span className="flex items-center gap-1 text-slate-300">
-                                 <Coins size={12} className="text-yellow-400" /> cost: {CHAT_COST} Cr/msg
-                             </span>
-                             <span className="flex items-center gap-1 text-slate-300">
-                                 <Clock size={12} className="text-blue-400" /> limit: 1 msg/6hr
-                             </span>
-                         </div>
-                     )}
-                </div>
-            )}
+
+            {/* TABS */}
+            <div className="flex gap-2 p-1 bg-slate-800 rounded-xl">
+                {showUniversal && (
+                    <button
+                        onClick={() => setActiveTab('UNIVERSAL')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'UNIVERSAL' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        <MessageCircle size={14} /> Global Group
+                    </button>
+                )}
+                {showPrivate && (
+                    <button
+                        onClick={() => setActiveTab('PRIVATE')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'PRIVATE' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        <Shield size={14} /> Admin Support
+                    </button>
+                )}
+            </div>
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-            {messages.filter(m => !m.isDeleted).map((msg) => {
-                const isMe = msg.userId === currentUser.id;
-                const isAdminMsg = msg.userRole === 'ADMIN';
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 relative">
+            {activeTab === 'PRIVATE' && !isAdminView && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-50 z-10 pointer-events-none opacity-5">
+                    <Shield size={120} />
+                </div>
+            )}
 
-                return (
-                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                         <div className={`max-w-[80%] md:max-w-[70%] rounded-2xl p-4 shadow-sm relative group ${
-                             isMe 
-                             ? 'bg-blue-600 text-white rounded-tr-none' 
-                             : isAdminMsg 
-                                ? 'bg-purple-100 text-purple-900 border border-purple-200 rounded-tl-none' 
-                                : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'
-                         }`}>
-                             <div className="flex justify-between items-start gap-2 mb-1">
-                                 <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${isMe ? 'text-blue-200' : 'text-slate-500'}`}>
-                                     {isAdminMsg && <Shield size={10} className="text-purple-600" />} 
-                                     {msg.userName}
-                                 </span>
-                                 <span className={`text-[9px] ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
-                                     {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                 </span>
-                             </div>
-                             <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+            {activeTab === 'PRIVATE' ? (
+                 <div className="text-center py-20">
+                     <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                         <Shield size={32} />
+                     </div>
+                     <h3 className="text-slate-800 font-bold mb-2">Private Support Channel</h3>
+                     <p className="text-slate-500 text-sm max-w-xs mx-auto">Messages sent here are seen only by Admins. Use this for payment issues or help.</p>
+                     {/* Placeholder for actual private messages mapping */}
+                     <p className="text-xs text-slate-400 mt-8">(Private messaging history coming soon)</p>
+                 </div>
+            ) : (
+                messages.filter(m => !m.isDeleted).map((msg) => {
+                    const isMe = msg.userId === currentUser.id;
+                    const isAdminMsg = msg.userRole === 'ADMIN';
 
-                             {/* Admin Controls */}
-                             {(currentUser.role === 'ADMIN') && (
-                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/20 backdrop-blur-sm rounded p-1">
-                                     <button onClick={() => handleEdit(msg)} className="p-1 hover:text-yellow-300 text-slate-300"><Edit2 size={12} /></button>
-                                     <button onClick={() => handleDelete(msg.id)} className="p-1 hover:text-red-300 text-slate-300"><Trash2 size={12} /></button>
-                                 </div>
-                             )}
-                         </div>
-                    </div>
-                );
-            })}
+                    return (
+                        <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] md:max-w-[70%] rounded-2xl p-4 shadow-sm relative group ${
+                                isMe
+                                ? 'bg-blue-600 text-white rounded-tr-none'
+                                : isAdminMsg
+                                    ? 'bg-purple-100 text-purple-900 border border-purple-200 rounded-tl-none'
+                                    : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'
+                            }`}>
+                                <div className="flex justify-between items-start gap-2 mb-1">
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${isMe ? 'text-blue-200' : 'text-slate-500'}`}>
+                                        {isAdminMsg && <Shield size={10} className="text-purple-600" />}
+                                        {msg.userName}
+                                    </span>
+                                    <span className={`text-[9px] ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
+                                        {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </span>
+                                </div>
+                                <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+
+                                {/* Admin Controls */}
+                                {(currentUser.role === 'ADMIN') && (
+                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/20 backdrop-blur-sm rounded p-1">
+                                        <button onClick={() => handleEdit(msg)} className="p-1 hover:text-yellow-300 text-slate-300"><Edit2 size={12} /></button>
+                                        <button onClick={() => handleDelete(msg.id)} className="p-1 hover:text-red-300 text-slate-300"><Trash2 size={12} /></button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })
+            )}
             <div ref={messagesEndRef} />
         </div>
 
@@ -212,36 +264,60 @@ export const UniversalChat: React.FC<Props> = ({ currentUser, onUserUpdate, isAd
                     You have been banned from using Chat.
                 </div>
             ) : (
-                <div className="flex gap-2">
-                    <input 
-                        type="text" 
-                        value={inputText}
-                        onChange={e => setInputText(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleSend()}
-                        placeholder={!statusCheck.allowed ? statusCheck.reason : "Type a message..."}
-                        disabled={!statusCheck.allowed && !editingId} // Allow typing if editing
-                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                    />
-                    <button 
-                        onClick={handleSend}
-                        disabled={(!statusCheck.allowed && !editingId) || !inputText.trim()}
-                        className={`p-3 rounded-xl transition-all ${
-                            (!statusCheck.allowed && !editingId)
-                            ? 'bg-slate-200 text-slate-400' 
-                            : editingId 
-                            ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
-                        }`}
-                    >
-                        {editingId ? <Edit2 size={20} /> : <Send size={20} />}
-                    </button>
+                <div className="space-y-2">
+                    {/* INPUT TOGGLE FOR BOTH MODE */}
+                    {CHAT_MODE === 'BOTH' && !isAdminView && (
+                        <div className="flex justify-center mb-2">
+                            <div className="bg-slate-100 p-1 rounded-full flex text-[10px] font-bold">
+                                <button
+                                   onClick={() => setSendToAdmin(false)}
+                                   className={`px-3 py-1 rounded-full transition-all ${!sendToAdmin ? 'bg-white shadow text-blue-600' : 'text-slate-400'}`}
+                                >
+                                   Everyone
+                                </button>
+                                <button
+                                   onClick={() => setSendToAdmin(true)}
+                                   className={`px-3 py-1 rounded-full transition-all ${sendToAdmin ? 'bg-white shadow text-purple-600' : 'text-slate-400'}`}
+                                >
+                                   Admin Only
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={inputText}
+                            onChange={e => setInputText(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleSend()}
+                            placeholder={!statusCheck.allowed ? statusCheck.reason : (sendToAdmin ? "Message to Admin..." : "Message to Everyone...")}
+                            disabled={!statusCheck.allowed && !editingId}
+                            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                        />
+                        <button
+                            onClick={handleSend}
+                            disabled={(!statusCheck.allowed && !editingId) || !inputText.trim()}
+                            className={`p-3 rounded-xl transition-all ${
+                                (!statusCheck.allowed && !editingId)
+                                ? 'bg-slate-200 text-slate-400'
+                                : editingId
+                                ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                                : sendToAdmin
+                                    ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-200'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
+                            }`}
+                        >
+                            {editingId ? <Edit2 size={20} /> : <Send size={20} />}
+                        </button>
+                    </div>
                 </div>
             )}
             
-            {/* Disclaimer for normal users */}
+            {/* Disclaimer */}
             {!currentUser.isPremium && currentUser.role !== 'ADMIN' && !currentUser.isChatBanned && (
                 <p className="text-[10px] text-center text-slate-400 mt-2">
-                    Normal Users: 1 msg every 6 hrs. Costs {CHAT_COST} Credit. <span className="text-yellow-600 font-bold">Go Premium for Unlimited.</span>
+                    {sendToAdmin ? 'Support Messages are Free.' : `Global Chat: 1 msg/6hr. Costs ${CHAT_COST} Credit.`}
                 </p>
             )}
         </div>

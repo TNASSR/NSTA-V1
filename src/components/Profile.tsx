@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, User, Save, RefreshCw } from 'lucide-react';
+import { User, ClassLevel, Stream, Board } from '../types';
+import { Mail, Lock, User as UserIcon, Save, RefreshCw } from 'lucide-react';
 
-export default function Profile() {
-  const { user } = useAuth();
+interface Props {
+    user: User;
+    onEdit: () => void;
+}
+
+export const Profile: React.FC<Props> = ({ user, onEdit }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'inbox'>('profile');
 
-  // Mock Inbox Messages
-  const messages = [
-    { id: 1, from: 'Admin', subject: 'Welcome to NST AI', body: 'Hi Rahul, welcome to the platform! Use code WELCOME50 for 50 free credits.', date: '2 days ago', unread: true },
-    { id: 2, from: 'System', subject: 'Physics Notes Updated', body: 'The Chapter 4 notes have been refreshed with new diagrams.', date: '1 week ago', unread: false },
-  ];
+  // Use user.inbox if available, otherwise mock
+  const messages = user.inbox || [];
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto pb-24 animate-in fade-in">
       <h1 className="text-3xl font-bold text-gray-800 mb-8">My Account</h1>
 
       <div className="flex flex-col md:flex-row gap-8">
@@ -23,7 +24,7 @@ export default function Profile() {
             onClick={() => setActiveTab('profile')}
             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'profile' ? 'bg-blue-50 text-blue-600 font-bold' : 'bg-white hover:bg-gray-50 text-gray-600'}`}
           >
-            <User size={20} />
+            <UserIcon size={20} />
             <span>Profile & Settings</span>
           </button>
           <button
@@ -32,7 +33,7 @@ export default function Profile() {
           >
             <Mail size={20} />
             <span>Inbox</span>
-            {messages.some(m => m.unread) && <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">New</span>}
+            {messages.some(m => !m.read) && <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">New</span>}
           </button>
         </div>
 
@@ -40,54 +41,53 @@ export default function Profile() {
         <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 p-8">
           {activeTab === 'profile' && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Edit Profile</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Personal Info</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <input type="text" defaultValue={user?.name} className="w-full border rounded-lg px-4 py-2" />
+                  <label className="block text-sm font-bold text-gray-500 uppercase mb-1">Full Name</label>
+                  <div className="w-full border rounded-lg px-4 py-3 bg-gray-50 text-gray-800 font-medium">{user.name}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input type="email" defaultValue={user?.email} disabled className="w-full border rounded-lg px-4 py-2 bg-gray-50 text-gray-500 cursor-not-allowed" />
+                  <label className="block text-sm font-bold text-gray-500 uppercase mb-1">Login ID</label>
+                  <div className="w-full border rounded-lg px-4 py-3 bg-gray-50 text-gray-800 font-mono">{user.id}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
-                  <select className="w-full border rounded-lg px-4 py-2">
-                    <option>Class 10</option>
-                    <option>Class 11</option>
-                    <option>Class 12</option>
-                  </select>
+                  <label className="block text-sm font-bold text-gray-500 uppercase mb-1">Email</label>
+                  <div className="w-full border rounded-lg px-4 py-3 bg-gray-50 text-gray-800">{user.email}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Stream</label>
-                  <select className="w-full border rounded-lg px-4 py-2">
-                    <option>Science</option>
-                    <option>Commerce</option>
-                    <option>Arts</option>
-                  </select>
+                  <label className="block text-sm font-bold text-gray-500 uppercase mb-1">Mobile</label>
+                  <div className="w-full border rounded-lg px-4 py-3 bg-gray-50 text-gray-800">{user.mobile}</div>
+                </div>
+
+                <div className="md:col-span-2 grid grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Class</label>
+                        <div className="font-bold text-gray-800">{user.classLevel || '10'}</div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Board</label>
+                        <div className="font-bold text-gray-800">{user.board || 'CBSE'}</div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Stream</label>
+                        <div className="font-bold text-gray-800">{user.stream || 'Science'}</div>
+                    </div>
                 </div>
               </div>
 
               <hr className="my-6 border-gray-100" />
 
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Security</h2>
-              <div className="space-y-4 max-w-md">
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                  <input type="password" placeholder="New Password" className="w-full pl-10 pr-4 py-2 border rounded-lg" />
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                  <input type="password" placeholder="Confirm Password" className="w-full pl-10 pr-4 py-2 border rounded-lg" />
-                </div>
-              </div>
-
-              <div className="mt-8 flex justify-end">
-                <button className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center">
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
-                </button>
+              <div className="flex justify-between items-center">
+                  <div>
+                      <h3 className="font-bold text-gray-800">Account Settings</h3>
+                      <p className="text-sm text-gray-500">Update your class, password or stream.</p>
+                  </div>
+                  <button onClick={onEdit} className="bg-slate-900 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-slate-800 flex items-center transition-colors">
+                    <Save className="w-4 h-4 mr-2" />
+                    Edit Profile
+                  </button>
               </div>
             </div>
           )}
@@ -101,15 +101,12 @@ export default function Profile() {
               
               <div className="space-y-4">
                 {messages.map((msg) => (
-                  <div key={msg.id} className={`p-4 rounded-xl border ${msg.unread ? 'bg-blue-50 border-blue-100' : 'bg-white border-gray-100'} transition-all hover:shadow-md cursor-pointer`}>
+                  <div key={msg.id} className={`p-4 rounded-xl border ${!msg.read ? 'bg-blue-50 border-blue-100' : 'bg-white border-gray-100'} transition-all hover:shadow-md cursor-pointer`}>
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className={`font-bold ${msg.unread ? 'text-blue-800' : 'text-gray-800'}`}>{msg.subject}</h3>
-                      <span className="text-xs text-gray-400">{msg.date}</span>
+                      <h3 className={`font-bold ${!msg.read ? 'text-blue-800' : 'text-gray-800'}`}>Admin Message</h3>
+                      <span className="text-xs text-gray-400">{new Date(msg.date).toLocaleDateString()}</span>
                     </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">{msg.body}</p>
-                    <div className="mt-2 flex items-center text-xs font-medium text-gray-500">
-                      <span className="bg-gray-200 px-2 py-0.5 rounded mr-2">From: {msg.from}</span>
-                    </div>
+                    <p className="text-sm text-gray-600 line-clamp-2">{msg.text}</p>
                   </div>
                 ))}
               </div>
@@ -126,4 +123,4 @@ export default function Profile() {
       </div>
     </div>
   );
-}
+};

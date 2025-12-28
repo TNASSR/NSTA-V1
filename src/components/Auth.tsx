@@ -7,7 +7,7 @@ interface Props {
   onLogin: (user: User) => void;
 }
 
-type AuthView = 'LOGIN' | 'SIGNUP' | 'ADMIN' | 'RECOVERY' | 'SUCCESS_ID';
+type AuthView = 'LOGIN' | 'SIGNUP' | 'RECOVERY' | 'SUCCESS_ID';
 
 const BLOCKED_DOMAINS = [
     'tempmail.com', 'throwawaymail.com', 'mailinator.com', 'yopmail.com', 
@@ -146,51 +146,7 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
     const storedUsersStr = localStorage.getItem('nst_users');
     const users: User[] = storedUsersStr ? JSON.parse(storedUsersStr) : [];
 
-    // --- ADMIN LOGIC ---
-    if (view === 'ADMIN') {
-        // Step 1: Verify Email
-        if (!showAdminVerify) {
-            if (formData.email.trim() !== ADMIN_EMAIL) {
-                setError('Access Denied. Unauthorized Email.');
-                return;
-            }
-            setShowAdminVerify(true); // Move to Code Step
-            setError(null);
-            return;
-        }
-
-        // Step 2: Verify Code (NSTA or TNASSR@0319#1108)
-        const validCodes = ['NSTA', 'TNASSR@0319#1108'];
-        
-        if (!validCodes.includes(adminAuthCode.trim())) {
-            setError('Invalid Verification Code.');
-            return;
-        }
-
-        // Code matched, proceed to login
-        let adminUser = users.find(u => u.email === ADMIN_EMAIL || u.id === 'ADMIN');
-        if (!adminUser) {
-            adminUser = {
-                id: 'ADMIN',
-                password: '',
-                name: 'System Admin',
-                mobile: '0000000000',
-                email: ADMIN_EMAIL,
-                role: 'ADMIN',
-                createdAt: new Date().toISOString(),
-                credits: 99999,
-                streak: 999,
-                lastLoginDate: new Date().toISOString(),
-                redeemedCodes: [],
-                progress: {}
-            };
-            localStorage.setItem('nst_users', JSON.stringify([...users, adminUser]));
-        }
-        onLogin(adminUser);
-        return;
-    }
-
-    // --- STUDENT LOGIN ---
+    // --- LOGIN ---
     if (view === 'LOGIN') {
       const input = formData.id.trim();
       const pass = formData.password.trim();
@@ -302,10 +258,9 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
           {view === 'SIGNUP' && <UserPlus className="text-blue-600" />}
           {view === 'RECOVERY' && <KeyRound className="text-orange-500" />}
           
-          {view === 'LOGIN' && 'Student Login'}
+          {view === 'LOGIN' && 'Login'}
           {view === 'SIGNUP' && 'Create Account'}
           {view === 'RECOVERY' && 'Request Login'}
-          {view === 'ADMIN' && (showAdminVerify ? 'Admin Verification' : 'Admin Login')}
         </h2>
 
         {settings?.loginMessage && view === 'LOGIN' && !error && (
@@ -415,45 +370,6 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
               </>
           )}
           
-          {view === 'ADMIN' && (
-              <>
-                <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Admin Email</label>
-                    <input 
-                        name="email" 
-                        type="email" 
-                        placeholder="Authorized Email" 
-                        value={formData.email} 
-                        onChange={handleChange} 
-                        disabled={showAdminVerify}
-                        className={`w-full px-4 py-3 border rounded-xl ${showAdminVerify ? 'bg-slate-100 border-slate-200 text-slate-500' : 'border-slate-200'}`} 
-                    />
-                </div>
-                
-                {/* VERIFICATION CODE INPUT */}
-                {showAdminVerify && (
-                    <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
-                        <label className="text-xs font-bold text-purple-600 uppercase flex items-center gap-1">
-                            <ShieldAlert size={12} /> Verification Code
-                        </label>
-                        <input 
-                            name="adminAuthCode" 
-                            type="password" 
-                            placeholder="Enter Secret Code" 
-                            value={adminAuthCode} 
-                            onChange={(e) => setAdminAuthCode(e.target.value)} 
-                            className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none" 
-                            autoFocus
-                        />
-                    </div>
-                )}
-
-                <button type="submit" className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl mt-4 flex items-center justify-center gap-2">
-                    {showAdminVerify ? <><Lock size={18} /> Access Dashboard</> : 'Verify Email'}
-                </button>
-              </>
-          )}
-
         </form>
 
         {view === 'LOGIN' && (
@@ -464,7 +380,6 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
                 <div className="mt-4 pt-4 border-t border-slate-100">
                     <p className="text-slate-500 text-sm">New Student? <button onClick={() => setView('SIGNUP')} className="text-blue-600 font-bold">Register Here</button></p>
                 </div>
-                <button onClick={() => { setView('ADMIN'); setShowAdminVerify(false); setAdminAuthCode(''); setError(null); }} className="mt-4 text-[10px] text-slate-300 font-bold uppercase tracking-widest">Admin Access</button>
             </div>
         )}
         {view !== 'LOGIN' && (
