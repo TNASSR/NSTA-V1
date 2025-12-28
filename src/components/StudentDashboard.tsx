@@ -18,6 +18,38 @@ interface Props {
   settings?: SystemSettings; // New prop
 }
 
+import { Store } from './Store';
+import { Profile } from './Profile';
+
+// NEW: Bottom Navigation Component
+const BottomNav = ({ activeTab, onTabChange }: { activeTab: StudentTab, onTabChange: (t: StudentTab) => void }) => {
+    return (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-2 px-6 flex justify-between items-center z-40 pb-safe">
+            <button onClick={() => onTabChange('ROUTINE')} className={`flex flex-col items-center gap-1 ${activeTab === 'ROUTINE' ? 'text-blue-600' : 'text-slate-400'}`}>
+                <Layout size={24} fill={activeTab === 'ROUTINE' ? "currentColor" : "none"} />
+                <span className="text-[10px] font-bold">Home</span>
+            </button>
+            <button onClick={() => onTabChange('CHAT')} className={`flex flex-col items-center gap-1 ${activeTab === 'CHAT' ? 'text-blue-600' : 'text-slate-400'}`}>
+                <BookOpen size={24} fill={activeTab === 'CHAT' ? "currentColor" : "none"} />
+                <span className="text-[10px] font-bold">Courses</span>
+            </button>
+            <div className="relative -top-6">
+                <button onClick={() => onTabChange('PREMIUM')} className="w-14 h-14 bg-blue-600 rounded-full text-white shadow-xl border-4 border-slate-50 flex items-center justify-center">
+                    <Crown size={24} fill="currentColor" />
+                </button>
+            </div>
+            <button onClick={() => onTabChange('REDEEM')} className={`flex flex-col items-center gap-1 ${activeTab === 'REDEEM' ? 'text-blue-600' : 'text-slate-400'}`}>
+                <Gift size={24} fill={activeTab === 'REDEEM' ? "currentColor" : "none"} />
+                <span className="text-[10px] font-bold">Rewards</span>
+            </button>
+            <button onClick={() => onTabChange('HISTORY')} className={`flex flex-col items-center gap-1 ${activeTab === 'HISTORY' ? 'text-blue-600' : 'text-slate-400'}`}>
+                <UserIcon size={24} fill={activeTab === 'HISTORY' ? "currentColor" : "none"} />
+                <span className="text-[10px] font-bold">Profile</span>
+            </button>
+        </div>
+    );
+};
+
 export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onSubjectSelect, onRedeemSuccess, settings }) => {
   const [activeTab, setActiveTab] = useState<StudentTab>('ROUTINE');
   const globalMessage = localStorage.getItem('nst_global_message');
@@ -148,26 +180,26 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       handleUserUpdate({ ...user, inbox: updatedInbox });
   };
 
-  const RoutineView = () => {
-    const subjects = getSubjectsList(user.classLevel || '10', user.stream || null);
+  const HomeView = () => {
     return (
-        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <Calendar className="text-[var(--primary)]" /> Routine
-                    </h3>
-                    <p className="text-xs text-slate-500">Tap a subject to start learning</p>
+        <div className="animate-in fade-in pb-20">
+             {/* HERO SECTION */}
+             <div className="bg-slate-900 rounded-2xl p-6 text-white mb-6 relative overflow-hidden shadow-2xl group cursor-pointer hover:scale-[1.01] transition-transform">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl opacity-20 -mr-20 -mt-20"></div>
+                <div className="relative z-10 flex flex-col items-start">
+                    <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-[10px] font-black px-2 py-1 rounded mb-2 flex items-center gap-1 uppercase tracking-wider">
+                        <Crown size={12} /> Ultra Access
+                    </span>
+                    <h2 className="text-2xl font-black mb-1">Unlock Premium Learning</h2>
+                    <p className="text-slate-400 text-sm mb-4 max-w-[80%]">Get unlimited access to AI Notes, Chapter Analysis, and Private Support.</p>
+                    <button onClick={() => setActiveTab('PREMIUM')} className="bg-white text-slate-900 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors">
+                        Upgrade Now
+                    </button>
                 </div>
-                <button 
-                    onClick={() => setEditMode(true)}
-                    className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-slate-200 border border-slate-200"
-                >
-                    <Settings size={14} /> Class & Profile
-                </button>
             </div>
 
-            <div className="bg-slate-900 rounded-2xl p-5 text-white mb-8 shadow-xl relative overflow-hidden">
+            {/* Global Stats/Timer */}
+            <div className="bg-slate-900 rounded-2xl p-5 text-white mb-6 shadow-xl relative overflow-hidden">
                 <div className="flex items-center justify-between relative z-10">
                     <div>
                         <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
@@ -177,11 +209,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                             {formatTime(dailyStudySeconds)}
                         </div>
                         <p className="text-[10px] text-slate-500 mt-1">Target: 3 Hours/Day for {REWARD_AMOUNT} Credits</p>
-                    </div>
-                    <div className="flex gap-2">
-                         <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center animate-pulse">
-                             <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                         </div>
                     </div>
                 </div>
                 <div className="mt-4 relative z-10">
@@ -199,15 +226,50 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                     </button>
                 )}
             </div>
+
+            {/* MORE SERVICES GRID (2x4) */}
+            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Layout size={18} /> More Services</h3>
+            <div className="grid grid-cols-4 gap-2 mb-6">
+                <button onClick={() => setActiveTab('HISTORY')} className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:shadow-md transition-all">
+                    <div className="bg-blue-50 text-blue-600 p-2 rounded-full mb-1"><History size={20} /></div>
+                    <span className="text-[9px] font-bold text-slate-600">History</span>
+                </button>
+                {settings?.isGameEnabled !== false && (
+                    <button onClick={() => setActiveTab('GAME')} className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-2xl hover:border-orange-400 hover:shadow-md transition-all">
+                        <div className="bg-orange-50 text-orange-600 p-2 rounded-full mb-1"><Gamepad2 size={20} /></div>
+                        <span className="text-[9px] font-bold text-slate-600">Game</span>
+                    </button>
+                )}
+                <button onClick={() => setActiveTab('CHAT')} className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-2xl hover:border-purple-400 hover:shadow-md transition-all">
+                    <div className="bg-purple-50 text-purple-600 p-2 rounded-full mb-1"><MessageCircle size={20} /></div>
+                    <span className="text-[9px] font-bold text-slate-600">Chat</span>
+                </button>
+                <button onClick={() => setActiveTab('REDEEM')} className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-2xl hover:border-green-400 hover:shadow-md transition-all">
+                    <div className="bg-green-50 text-green-600 p-2 rounded-full mb-1"><Gift size={20} /></div>
+                    <span className="text-[9px] font-bold text-slate-600">Redeem</span>
+                </button>
+                {/* Second Row placeholders or extras */}
+                <button onClick={() => setEditMode(true)} className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-2xl hover:border-slate-400 hover:shadow-md transition-all">
+                    <div className="bg-slate-50 text-slate-600 p-2 rounded-full mb-1"><Settings size={20} /></div>
+                    <span className="text-[9px] font-bold text-slate-600">Settings</span>
+                </button>
+            </div>
             
-            <div className="space-y-3">
+            {/* Quick Resume Section (Optional) */}
+        </div>
+    );
+  };
+
+  const CoursesView = () => {
+      const subjects = getSubjectsList(user.classLevel || '10', user.stream || null);
+      return (
+          <div className="animate-in fade-in pb-20">
+             <h3 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">My Courses</h3>
+             <div className="space-y-3">
                 {subjects.map((subj, idx) => {
                     const progress = user.progress?.[subj.id] || { currentChapterIndex: 0, totalMCQsSolved: 0 };
-                    const startHour = 8 + idx; 
-                    const timeSlot = `${startHour}:00 - ${startHour + 1}:00`;
                     return (
                         <div key={idx} onClick={() => onSubjectSelect(subj)} className="p-4 rounded-xl border bg-white border-slate-200 hover:border-[var(--primary)] hover:shadow-md flex items-center gap-4 transition-all cursor-pointer group relative overflow-hidden">
-                            <div className="w-16 text-center opacity-60"><div className="font-bold text-slate-800">{timeSlot.split('-')[0]}</div></div>
                             <div className={`h-10 w-1 ${subj.color.split(' ')[0]} rounded-full`}></div>
                             <div className="flex-1">
                                 <h4 className="font-bold text-lg text-slate-800">{subj.name}</h4>
@@ -216,19 +278,19 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                                     <span className={`flex items-center gap-1 font-bold ${progress.totalMCQsSolved < 100 ? 'text-orange-500' : 'text-green-600'}`}>MCQs: {progress.totalMCQsSolved}/100</span>
                                 </div>
                             </div>
-                            <div className="p-2 bg-slate-50 rounded-full group-hover:bg-[var(--primary)] text-slate-300 group-hover:text-white transition-colors"><Clock size={20} /></div>
+                            <div className="p-2 bg-slate-50 rounded-full group-hover:bg-[var(--primary)] text-slate-300 group-hover:text-white transition-colors"><Play size={20} fill="currentColor" /></div>
                         </div>
                     );
                 })}
             </div>
-        </div>
-    );
+          </div>
+      );
   };
 
   const isGameEnabled = settings?.isGameEnabled ?? true;
 
   return (
-    <div>
+    <div className="pb-safe">
         {/* Profile Edit Modal */}
         {editMode && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
@@ -315,6 +377,15 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
             </div>
         )}
 
+        {/* ADMIN FLOATING BUTTON */}
+        {user.role === 'ADMIN' && (
+            <div className="fixed top-20 right-4 z-50">
+                <button onClick={() => window.location.reload()} className="bg-slate-900 text-white p-3 rounded-full shadow-xl border-2 border-white animate-bounce">
+                    <LayoutDashboard size={20} />
+                </button>
+            </div>
+        )}
+
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6 flex flex-wrap justify-between items-center gap-4">
             <div className="flex items-center gap-3">
                 <div className="bg-orange-100 p-2 rounded-full text-orange-600"><Zap size={20} fill="currentColor" /></div>
@@ -330,23 +401,20 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
             </div>
         </div>
 
-        <div className={`grid ${isGameEnabled ? 'grid-cols-6' : 'grid-cols-5'} gap-1 bg-white p-2 rounded-xl border border-slate-200 shadow-sm mb-8 sticky top-20 z-20`}>
-            <button onClick={() => setActiveTab('ROUTINE')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'ROUTINE' ? 'bg-slate-100 text-[var(--primary)]' : 'text-slate-400 hover:bg-slate-50'}`}><Calendar size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Routine</span></button>
-            <button onClick={() => setActiveTab('CHAT')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'CHAT' ? 'bg-slate-100 text-[var(--primary)]' : 'text-slate-400 hover:bg-slate-50'}`}><MessageCircle size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Chat</span></button>
-            {isGameEnabled && <button onClick={() => setActiveTab('GAME')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'GAME' ? 'bg-orange-50 text-orange-600' : 'text-slate-400 hover:bg-slate-50'}`}><Gamepad2 size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Game</span></button>}
-            <button onClick={() => setActiveTab('HISTORY')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'HISTORY' ? 'bg-slate-100 text-[var(--primary)]' : 'text-slate-400 hover:bg-slate-50'}`}><History size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">History</span></button>
-            <button onClick={() => setActiveTab('REDEEM')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'REDEEM' ? 'bg-slate-100 text-[var(--primary)]' : 'text-slate-400 hover:bg-slate-50'}`}><Gift size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Redeem</span></button>
-            <button onClick={() => setActiveTab('PREMIUM')} className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${activeTab === 'PREMIUM' ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}><Sparkles size={18} className="mb-1" /><span className="text-[9px] font-bold uppercase">Premium</span></button>
+        {/* MAIN CONTENT AREA */}
+        <div className="min-h-[500px] pb-24">
+            {activeTab === 'ROUTINE' && <HomeView />}
+            {activeTab === 'CHAT' && <CoursesView />}
+
+            {/* OTHER VIEWS */}
+            {activeTab === 'GAME' && isGameEnabled && (user.isGameBanned ? <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-100"><Ban size={48} className="mx-auto text-red-500 mb-4" /><h3 className="text-lg font-bold text-red-700">Access Denied</h3><p className="text-sm text-red-600">Admin has disabled the game for your account.</p></div> : <SpinWheel user={user} onUpdateUser={handleUserUpdate} />)}
+            {activeTab === 'HISTORY' && <div className="animate-in fade-in"><Profile user={user} onEdit={() => setEditMode(true)} /></div>}
+            {activeTab === 'REDEEM' && <div className="animate-in fade-in slide-in-from-bottom-2 duration-300"><RedeemSection user={user} onSuccess={onRedeemSuccess} /></div>}
+            {activeTab === 'PREMIUM' && <div className="animate-in zoom-in duration-300"><Store user={user} /></div>}
         </div>
 
-        <div className="min-h-[400px]">
-            {activeTab === 'ROUTINE' && <RoutineView />}
-            {activeTab === 'CHAT' && <UniversalChat currentUser={user} onUserUpdate={handleUserUpdate} settings={settings} />}
-            {activeTab === 'GAME' && isGameEnabled && (user.isGameBanned ? <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-100"><Ban size={48} className="mx-auto text-red-500 mb-4" /><h3 className="text-lg font-bold text-red-700">Access Denied</h3><p className="text-sm text-red-600">Admin has disabled the game for your account.</p></div> : <SpinWheel user={user} onUpdateUser={handleUserUpdate} />)}
-            {activeTab === 'HISTORY' && <HistoryPage />}
-            {activeTab === 'REDEEM' && <div className="animate-in fade-in slide-in-from-bottom-2 duration-300"><RedeemSection user={user} onSuccess={onRedeemSuccess} /></div>}
-            {activeTab === 'PREMIUM' && <div className="animate-in zoom-in duration-300 pb-10"><div className="bg-slate-900 rounded-2xl p-6 text-center text-white mb-8"><h2 className="text-2xl font-bold mb-2">Buy Credits</h2><p className="text-slate-400 text-sm">Select a package, Pay via UPI, and submit request.</p></div>{settings?.isPaymentEnabled === false ? <div className="bg-gradient-to-br from-slate-100 to-slate-200 p-10 rounded-3xl border-2 border-slate-300 text-center shadow-inner"><div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl"><Lock size={40} className="text-slate-400" /></div><h3 className="text-2xl font-black text-slate-700 mb-2">Store Locked</h3><p className="text-slate-500 font-medium max-w-xs mx-auto leading-relaxed">{settings.paymentDisabledMessage || "Purchases are currently disabled by the Admin. Please check back later."}</p></div> : <><div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">{settings?.packages?.map(pkg => <div key={pkg.id} onClick={() => setSelectedPackage(pkg.id)} className={`bg-white p-6 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group ${selectedPackage === pkg.id ? 'border-[var(--primary)] shadow-xl scale-105' : 'border-slate-200 hover:border-blue-400'}`}>{pkg.isPopular && <div className="absolute top-0 right-0 bg-yellow-400 text-black text-[10px] font-bold px-2 py-1 rounded-bl-lg">POPULAR</div>}<h3 className="text-xl font-bold text-slate-800">{pkg.name}</h3><div className="text-3xl font-black text-[var(--primary)] my-2">₹{pkg.price}</div><div className="font-bold text-slate-600">{pkg.credits} Credits</div></div>)}</div>{selectedPackage && <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-lg animate-in slide-in-from-bottom-4"><h3 className="font-bold text-lg mb-4 flex items-center gap-2"><CreditCard size={20} className="text-green-600" /> Complete Payment</h3><div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200 text-sm space-y-2"><p className="font-bold text-slate-700">Send Payment To:</p><p>UPI ID: <span className="font-mono bg-white px-2 py-1 rounded border">{settings?.upiId || `${ADMIN_PHONE}@paytm`}</span></p><p>Name: <span className="font-mono">{settings?.upiName || 'NST Admin'}</span></p></div><div className="space-y-3"><div className="mb-4"><button onClick={handleWhatsAppPayment} className="w-full bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 shadow-md flex items-center justify-center gap-2"><MessageCircle size={20} /> Order via WhatsApp</button></div><label className="text-xs font-bold text-slate-500 uppercase">Enter Transaction ID / UTR (After Payment)</label><input type="text" placeholder="e.g. 3456789012" value={txnId} onChange={e => setTxnId(e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono" />{paymentStatus === 'SUBMITTED' ? <div className="bg-green-100 text-green-700 p-4 rounded-xl text-center font-bold flex items-center justify-center gap-2"><CheckCircle size={20} /> Request Sent! Wait for Admin.</div> : <button onClick={handleSubmitPayment} disabled={!txnId} className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2"><Send size={18} /> Submit Payment Request</button>}</div></div>}</>}</div>}
-        </div>
+        {/* BOTTOM NAV */}
+        <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };
